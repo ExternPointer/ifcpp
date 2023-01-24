@@ -54,7 +54,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OU
 #ifdef _MSC_VER
 #include <windows.h>
 #include <tchar.h>
-#include <external/XUnzip.h>
+//#include <external/XUnzip.h>
 #endif
 
 #include "ifcpp/Model/OpenMPIncludes.h"
@@ -72,6 +72,7 @@ using namespace IFC4X3;
 bool unzipFile(const std::string& filePathIn, std::stringstream& bufferResult)
 {
 	bool bRet = false;
+    /*
 #ifdef _MSC_VER
 	HZIP hZip = OpenZipW((void*)filePathIn.c_str(), 0, ZIP_FILENAME);
 
@@ -114,6 +115,7 @@ bool unzipFile(const std::string& filePathIn, std::stringstream& bufferResult)
 		CloseZip(hZip);
 	}
 #endif
+     */
 	return bRet;
 }
 

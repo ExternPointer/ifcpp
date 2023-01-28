@@ -5,8 +5,8 @@ set( CMAKE_CXX_STANDARD 23 )
 
 add_definitions( -DIFCQUERY_STATIC_LIB )
 
-file( GLOB_RECURSE IFC_HEADERS include/ifcpp/Ifc *.h )
-file( GLOB_RECURSE IFC_SOURCES src/Ifc *.cpp )
+file( GLOB_RECURSE IFC_HEADERS include/ifcpp *.h )
+file( GLOB_RECURSE IFC_SOURCES src *.cpp )
 
 set( SOURCES
         ${IFC_SOURCES} )

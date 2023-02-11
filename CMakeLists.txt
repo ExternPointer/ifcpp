@@ -7,6 +7,7 @@ add_definitions( -DIFCQUERY_STATIC_LIB )
 
 file( GLOB_RECURSE IFC_HEADERS include/ifcpp *.h )
 file( GLOB_RECURSE IFC_SOURCES src *.cpp )
+file( GLOB_RECURSE CARVE third_party/carve *.* )
 
 set( SOURCES
         ${IFC_SOURCES} )
@@ -16,8 +17,9 @@ set( HEADERS
 
 
 
-add_library( ${PROJECT_NAME} STATIC ${SOURCES} ${HEADERS} )
+add_library( ${PROJECT_NAME} STATIC ${SOURCES} ${HEADERS} ${CARVE} )
 target_include_directories( ${PROJECT_NAME} PUBLIC include )
+include_directories( third_party/carve/include )
 if( MSVC )
     target_compile_options( ${PROJECT_NAME} PRIVATE "/bigobj" )
 endif()

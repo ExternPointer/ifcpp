@@ -533,7 +533,7 @@ CSGJSCPP_VECTOR<Polygon> csgpolygon_cylinder(const Vector &s, const Vector &e, C
         CSGJSCPP_REAL angle = slice * (CSGJSCPP_REAL)M_PI * 2;
         Vector        out = axisX * (CSGJSCPP_REAL)cos(angle) + axisY * (CSGJSCPP_REAL)sin(angle);
         Vector        pos = s + ray * stack + out * r;
-        Vector        normal = out * (1.0f - fabs(normalBlend)) + axisZ * normalBlend;
+        Vector        normal = out * (1.0f - fabsf(normalBlend)) + axisZ * normalBlend;
         return Vertex{pos, normal, col};
     };
 

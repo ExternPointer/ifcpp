@@ -85,6 +85,16 @@ public:
         this->Transform( &result );
         return result;
     }
+    inline void Transform( csgjscpp::Model* m ) const {
+        for(auto& v: m->vertices) {
+            this->Transform(&v.pos);
+        }
+    }
+    [[nodiscard]] inline csgjscpp::Model GetTransformed( const csgjscpp::Model& m ) const {
+        auto result = m;
+        this->Transform( &result );
+        return result;
+    }
     inline static void Multiply( Matrix* m1, const Matrix& m2 ) {
         Matrix& out = *m1;
         const Matrix a = *m1;

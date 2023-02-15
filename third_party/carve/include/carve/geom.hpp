@@ -26,6 +26,7 @@
 
 #include <carve/carve.hpp>
 
+#include "ifcpp/Geometry/csgjs.h"
 #include <vector>
 
 namespace carve {
@@ -120,6 +121,13 @@ static inline vector<3> VECTOR(double x, double y, double z) {
   r.y = y;
   r.z = z;
   return r;
+}
+static inline vector<3> VECTOR(csgjscpp::Vector v) {
+    vector<3> r;
+    r.x = v.x;
+    r.y = v.y;
+    r.z = v.z;
+    return r;
 }
 static inline vector<4> VECTOR(double x, double y, double z, double w) {
   vector<4> r;

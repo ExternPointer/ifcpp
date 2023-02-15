@@ -145,16 +145,14 @@ inline uint32_t lerp(uint32_t a, uint32_t b, CSGJSCPP_REAL v) {
 
 struct Vertex {
     Vector   pos;
-    Vector   normal;
-    uint32_t col;
 };
 
 inline bool operator==(const Vertex &a, const Vertex &b) {
-    return a.pos == b.pos && a.normal == b.normal && a.col == b.col;
+    return a.pos == b.pos;
 }
 
 inline bool operator!=(const Vertex &a, const Vertex &b) {
-    return a.pos != b.pos || a.normal != b.normal || a.col != b.col;
+    return a.pos != b.pos;
 }
 
 
@@ -206,8 +204,8 @@ struct Polygon {
 
     inline void flip() {
         CSGJSCPP_REVERSE(vertices.begin(), vertices.end());
-        for (size_t i = 0; i < vertices.size(); i++)
-            vertices[i].normal = negate(vertices[i].normal);
+        //for (size_t i = 0; i < vertices.size(); i++)
+        //    vertices[i].normal = negate(vertices[i].normal);
         plane.flip();
     }
 };
@@ -218,6 +216,7 @@ struct Model {
 
     CSGJSCPP_VECTOR<Vertex> vertices;
     CSGJSCPP_VECTOR<Index>  indices;
+    unsigned int color;
 
     Index AddVertex(const Vertex &newv) {
         Index i = 0;
@@ -256,6 +255,7 @@ CSGJSCPP_VECTOR<Polygon> csgpolygon_cylinder(const Vector &s = {0.0f, -1.0f, 0.0
 CSGJSCPP_VECTOR<Polygon> csgfixtjunc(const CSGJSCPP_VECTOR<Polygon> &polygons);
 
 Model modelfrompolygons(const CSGJSCPP_VECTOR<Polygon> &polygons);
+CSGJSCPP_VECTOR<Polygon> modeltopolygons(const Model &model);
 
 /* API to build models representing primatives */
 Model csgmodel_cube(const Vector &center = {0.0f, 0.0f, 0.0f}, const Vector &dim = {1.0f, 1.0f, 1.0f},

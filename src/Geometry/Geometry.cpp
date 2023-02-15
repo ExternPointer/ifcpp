@@ -1,6 +1,8 @@
 #include "ifcpp/Geometry/Geometry.h"
 
 #include "ifcpp/Geometry/Matrix.h"
+#include "ifcpp/Geometry/Solid.h"
+#include "ifcpp/Geometry/Style.h"
 #include "ifcpp/Geometry/Utils.h"
 #include <memory>
 
@@ -19,6 +21,7 @@
 #include "ifcpp/Ifc/IfcFace.h"
 #include "ifcpp/Ifc/IfcFaceBasedSurfaceModel.h"
 #include "ifcpp/Ifc/IfcFaceBound.h"
+#include "ifcpp/Ifc/IfcSpace.h"
 #include "ifcpp/Ifc/IfcFeatureElementSubtraction.h"
 #include "ifcpp/Ifc/IfcGeometricRepresentationItem.h"
 #include "ifcpp/Ifc/IfcGloballyUniqueId.h"
@@ -32,9 +35,11 @@
 #include "ifcpp/Ifc/IfcPolyLoop.h"
 #include "ifcpp/Ifc/IfcProductRepresentation.h"
 #include "ifcpp/Ifc/IfcReal.h"
+#include "ifcpp/Ifc/IfcRelVoidsElement.h"
 #include "ifcpp/Ifc/IfcRepresentation.h"
 #include "ifcpp/Ifc/IfcShellBasedSurfaceModel.h"
 #include "ifcpp/Ifc/IfcSolidModel.h"
+#include "ifcpp/Ifc/IfcStyledItem.h"
 #include "ifcpp/Ifc/IfcSubedge.h"
 #include "ifcpp/Ifc/IfcSurface.h"
 #include "ifcpp/Ifc/IfcTrimmedCurve.h"
@@ -60,12 +65,51 @@ std::vector<std::shared_ptr<Geometry>> GenerateGeometry( const std::shared_ptr<B
         if( dynamic_pointer_cast<IfcFeatureElementSubtraction>( object ) ) {
             continue;
         }
-        geometry.push_back( GenerateGeometryFromObject( object, lengthFactor, angleFactor ) );
+        if( dynamic_pointer_cast<IfcSpace>( object ) ) {
+            continue;
+        }
+        auto g = GenerateGeometryFromObject( object, lengthFactor, angleFactor );
+        if( !g->m_meshes.empty() ) {
+            SubtractOpenings( g, lengthFactor, angleFactor );
+            geometry.push_back( g );
+        }
     }
 
     // resolve spatial structure???
 
     return geometry;
+}
+
+void SubtractOpenings( const std::shared_ptr<Geometry>& geometry, float lengthFactor, float angleFactor ) {
+    const shared_ptr<IfcElement> ifc_element = dynamic_pointer_cast<IfcElement>( geometry->m_object );
+    if( !ifc_element ) {
+        return;
+    }
+    std::vector<weak_ptr<IfcRelVoidsElement>> vec_rel_voids( ifc_element->m_HasOpenings_inverse );
+    if( vec_rel_voids.empty() ) {
+        return;
+    }
+    for( auto& rel_voids_weak: vec_rel_voids ) {
+        shared_ptr<IfcRelVoidsElement> rel_voids( rel_voids_weak );
+        if( !rel_voids ) {
+            continue;
+        }
+        shared_ptr<IfcFeatureElementSubtraction> opening = rel_voids->m_RelatedOpeningElement;
+        if( !opening ) {
+            continue;
+        }
+        if( !opening->m_Representation ) {
+            continue;
+        }
+        auto openingGeometry = GenerateGeometryFromObject( opening, lengthFactor, angleFactor );
+        for( auto& model: geometry->m_meshes ) {
+            for( auto& openingModel: openingGeometry->m_meshes ) {
+                auto color = model.color;
+                model = csgjscpp::csgsubtract( model, openingModel );
+                model.color = color;
+            }
+        }
+    }
 }
 
 std::shared_ptr<Geometry> GenerateGeometryFromObject( const std::shared_ptr<IFC4X3::IfcObjectDefinition>& object, float lengthFactor, float angleFactor ) {
@@ -80,29 +124,37 @@ std::shared_ptr<Geometry> GenerateGeometryFromObject( const std::shared_ptr<IFC4
         return geometry;
     }
 
+    auto matrix = Matrix::GetScale( lengthFactor, lengthFactor, lengthFactor );
+    if( product->m_ObjectPlacement ) {
+        Matrix::Multiply( &matrix, ConvertObjectPlacement( product->m_ObjectPlacement ) );
+    }
+
     for( const auto& representation: productRepresentation->m_Representations ) {
         for( const auto& item: representation->m_Items ) {
             // ENTITY IfcRepresentationItem  ABSTRACT SUPERTYPE OF(ONEOF(IfcGeometricRepresentationItem,
             // IfcMappedItem, IfcStyledItem, IfcTopologicalRepresentationItem));
             const auto geometric = dynamic_pointer_cast<IfcGeometricRepresentationItem>( item );
             if( geometric ) {
-                geometry->m_meshes.push_back( ConvertGeometryRepresentation( geometric, angleFactor ) );
+                auto model = ConvertGeometryRepresentation( geometric, angleFactor );
+                if( !model.vertices.empty() ) {
+                    matrix.Transform( &model );
+                    geometry->m_meshes.push_back( model );
+                }
             }
         }
     }
 
     // subtract openings
 
-    auto matrix = Matrix::GetScale( lengthFactor, lengthFactor, lengthFactor );
-    if( product->m_ObjectPlacement ) {
-        Matrix::Multiply( &matrix, ConvertObjectPlacement( product->m_ObjectPlacement ) );
-    }
-    // apply matrix
 
     // fetch properties
 
-
     return geometry;
+}
+
+unsigned int GetColor( const std::shared_ptr<IFC4X3::IfcGeometricRepresentationItem>& geometric ) {
+    auto color = convertRepresentationStyle( geometric );
+    return color != 0 ? color : 4278190335;
 }
 
 csgjscpp::Model ConvertGeometryRepresentation( const std::shared_ptr<IFC4X3::IfcGeometricRepresentationItem>& geometric, float angleFactor ) {
@@ -119,33 +171,36 @@ csgjscpp::Model ConvertGeometryRepresentation( const std::shared_ptr<IFC4X3::Ifc
                 std::copy( vec_appearance_data.begin(), vec_appearance_data.end(), std::back_inserter( item_data->m_vec_item_appearances ) );
             }
             */
+    auto color = GetColor( geometric );
+    csgjscpp::Model result;
 
     const auto surfaceModel = dynamic_pointer_cast<IfcFaceBasedSurfaceModel>( geometric );
     if( surfaceModel ) {
-        return ConvertFaceBasedSurfaceModel( surfaceModel, angleFactor );
+        result = ConvertFaceBasedSurfaceModel( surfaceModel, angleFactor );
     }
 
     const auto boolean_result = dynamic_pointer_cast<IfcBooleanResult>( geometric );
     if( boolean_result ) {
-        return ConvertBooleanResult( boolean_result );
+        result = ConvertBooleanResult( boolean_result, angleFactor );
     }
 
     const auto solid_model = dynamic_pointer_cast<IfcSolidModel>( geometric );
     if( solid_model ) {
-        return ConvertSolidModel( solid_model );
+        result = ConvertSolidModel( solid_model, angleFactor );
     }
 
     const auto shellModel = dynamic_pointer_cast<IfcShellBasedSurfaceModel>( geometric );
     if( shellModel ) {
-        return ConvertShellBasedSurfaceModel( shellModel, angleFactor );
+        result = ConvertShellBasedSurfaceModel( shellModel, angleFactor );
     }
 
     const auto ifc_surface = dynamic_pointer_cast<IfcSurface>( geometric );
     if( ifc_surface ) {
-        return ConvertSurface( ifc_surface );
+        result = ConvertSurface( ifc_surface );
     }
 
-    return {};
+    result.color = color;
+    return result;
 }
 
 
@@ -174,128 +229,12 @@ csgjscpp::Model ConvertShellBasedSurfaceModel( const std::shared_ptr<IFC4X3::Ifc
     return ConvertFaceList( faces, angleFactor );
 }
 
-csgjscpp::Model ConvertFaceList( const std::vector<std::shared_ptr<IFC4X3::IfcFace>>& faces, float angleFactor /*, style data*/ ) {
-    std::vector<csgjscpp::Polygon> polygons;
-    for( const std::shared_ptr<IfcFace>& face: faces ) {
-        const auto& bounds = face->m_Bounds;
-        std::vector<std::vector<csgjscpp::Vector>> loops;
-        for( const auto& bound: bounds ) {
-            //  ENTITY IfcLoop SUPERTYPE OF(ONEOF(IfcEdgeLoop, IfcPolyLoop, IfcVertexLoop))
-            const auto loop = bound->m_Bound;
-            auto points = ConvertLoop( loop, angleFactor );
-            if( bound->m_Orientation && !bound->m_Orientation->m_value ) {
-                std::reverse( points.begin(), points.end() );
-            }
-            loops.push_back( points );
-        }
-        for( auto& loop: loops ) {
-            ifcpp::UnCloseLoop( loop );
-            polygons.push_back( ifcpp::CreatePolygon( loop /* style data */ ) );
-        }
-    }
-    return ifcpp::CreateModel( polygons );
+
+csgjscpp::Model ConvertBooleanResult( const std::shared_ptr<IFC4X3::IfcBooleanResult>& bool_result, float angleFactor ) {
+    return convertIfcBooleanResult( bool_result, angleFactor );
 }
-
-std::vector<csgjscpp::Vector> ConvertLoop( const std::shared_ptr<IFC4X3::IfcLoop>& loop, float angleFactor ) {
-    std::vector<csgjscpp::Vector> loop_points;
-    const auto poly_loop = dynamic_pointer_cast<IfcPolyLoop>( loop );
-    if( poly_loop ) {
-        const auto& ifc_points = poly_loop->m_Polygon;
-        loop_points = ConvertCartesianPoints( ifc_points );
-        UnCloseLoop( loop_points );
-    }
-    const auto edge_loop = dynamic_pointer_cast<IfcEdgeLoop>( loop );
-    if( edge_loop ) {
-        for( const shared_ptr<IfcOrientedEdge>& oriented_edge: edge_loop->m_EdgeList ) {
-            const auto& edge = oriented_edge->m_EdgeElement;
-            auto edge_points = ConvertEdge( edge, angleFactor );
-        }
-    }
-    return loop_points;
-}
-
-
-std::vector<csgjscpp::Vector> ConvertEdge( const std::shared_ptr<IFC4X3::IfcEdge>& edge, float angleFactor ) {
-    // ENTITY IfcEdge SUPERTYPE OF	(ONEOF(IfcOrientedEdge, IfcEdgeCurve, IfcSubedge))
-
-    const auto& edge_start = edge->m_EdgeStart;
-    const auto& edge_end = edge->m_EdgeEnd;
-
-    const auto orientedEdge = dynamic_pointer_cast<IfcOrientedEdge>( edge );
-    if( orientedEdge ) {
-        bool orientedEdgeOrientation = orientedEdge->m_Orientation->m_value;
-        auto loopPointsEdgeElement = ConvertEdge( orientedEdge->m_EdgeElement, angleFactor );
-        if( !orientedEdgeOrientation ) {
-            std::reverse( loopPointsEdgeElement.begin(), loopPointsEdgeElement.end() );
-        }
-        return loopPointsEdgeElement;
-    }
-
-    const auto subEdge = dynamic_pointer_cast<IfcSubedge>( edge );
-    if( subEdge ) {
-        if( subEdge->m_ParentEdge ) {
-            return ConvertEdge( subEdge->m_ParentEdge, angleFactor );
-        }
-    }
-
-    const auto edgeCurve = dynamic_pointer_cast<IfcEdgeCurve>( edge );
-    if( edgeCurve ) {
-        bool edgeSameSense = !edgeCurve->m_SameSense || edgeCurve->m_SameSense->m_value;
-
-        auto p0 = ConvertVertex( edge_start );
-        auto p1 = ConvertVertex( edge_end );
-
-        if( !edgeSameSense ) {
-            std::swap( p0, p1 );
-        }
-
-        std::vector<csgjscpp::Vector> curvePoints;
-        std::vector<csgjscpp::Vector> segmentStartPoints;
-        const shared_ptr<IfcCurve> edgeCurveCurve = edgeCurve->m_EdgeGeometry;
-        bool senseAgreement = true;
-
-        if( edgeCurveCurve ) {
-            const auto trimmedCurve = dynamic_pointer_cast<IfcTrimmedCurve>( edgeCurveCurve );
-            if( trimmedCurve ) {
-                const std::shared_ptr<IfcCurve> basisCurve = trimmedCurve->m_BasisCurve;
-                if( basisCurve ) {
-                    std::vector<shared_ptr<IfcTrimmingSelect>> curve_trim1_vec;
-                    std::vector<shared_ptr<IfcTrimmingSelect>> curve_trim2_vec;
-
-                    std::shared_ptr<IfcCartesianPoint> trim1( new IfcCartesianPoint() );
-                    trim1->m_Coordinates.push_back( std::make_shared<IfcLengthMeasure>( p0.x ) );
-                    trim1->m_Coordinates.push_back( std::make_shared<IfcLengthMeasure>( p0.y ) );
-                    trim1->m_Coordinates.push_back( std::make_shared<IfcLengthMeasure>( p0.z ) );
-                    curve_trim1_vec.push_back( trim1 );
-
-                    shared_ptr<IfcCartesianPoint> trim2( new IfcCartesianPoint() );
-                    trim2->m_Coordinates.push_back( std::make_shared<IfcLengthMeasure>( p1.x ) );
-                    trim2->m_Coordinates.push_back( std::make_shared<IfcLengthMeasure>( p1.y ) );
-                    trim2->m_Coordinates.push_back( std::make_shared<IfcLengthMeasure>( p1.z ) );
-                    curve_trim2_vec.push_back( trim2 );
-                    return ConvertCurve( basisCurve, curve_trim1_vec, curve_trim2_vec, senseAgreement, angleFactor );
-                }
-            } else {
-                std::vector<shared_ptr<IfcTrimmingSelect>> curve_trim1_vec;
-                std::vector<shared_ptr<IfcTrimmingSelect>> curve_trim2_vec;
-                return ConvertCurve( edgeCurveCurve, curve_trim1_vec, curve_trim2_vec, senseAgreement, angleFactor );
-            }
-        } else {
-            curvePoints.push_back( p0 );
-            curvePoints.push_back( p1 );
-        }
-
-        return curvePoints;
-    }
-    return {};
-}
-
-
-csgjscpp::Model ConvertBooleanResult( const std::shared_ptr<IFC4X3::IfcBooleanResult>& bool_result /*, style data*/ ) {
-    return {};
-}
-csgjscpp::Model ConvertSolidModel( const std::shared_ptr<IFC4X3::IfcSolidModel>& bool_result /*, style data*/ ) {
-    return {};
+csgjscpp::Model ConvertSolidModel( const std::shared_ptr<IFC4X3::IfcSolidModel>& bool_result, float angleFactor ) {
+    return convertIfcSolidModel( bool_result, angleFactor );
 }
 csgjscpp::Model ConvertSurface( const std::shared_ptr<IFC4X3::IfcSurface>& surface /*, style data*/ ) {
     return {};

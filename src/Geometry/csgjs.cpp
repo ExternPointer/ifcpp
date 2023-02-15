@@ -48,7 +48,6 @@ struct CSGNode {
 // Invert all orientation-specific data (e.g. Vertex normal). Called when the
 // orientation of a polygon is flipped.
 inline Vertex flip(Vertex v) {
-    v.normal = negate(v.normal);
     return v;
 }
 
@@ -58,8 +57,6 @@ inline Vertex flip(Vertex v) {
 inline Vertex interpolate(const Vertex &a, const Vertex &b, CSGJSCPP_REAL t) {
     Vertex ret;
     ret.pos = lerp(a.pos, b.pos, t);
-    ret.normal = lerp(a.normal, b.normal, t);
-    ret.col = lerp(a.col, b.col, t);
     return ret;
 }
 
@@ -395,7 +392,7 @@ CSGNode::~CSGNode() {
 
 // Public interface implementation
 
-inline CSGJSCPP_VECTOR<Polygon> modeltopolygons(const Model &model) {
+CSGJSCPP_VECTOR<Polygon> modeltopolygons(const Model &model) {
     CSGJSCPP_VECTOR<Polygon> list;
     for (size_t i = 0; i < model.indices.size(); i += 3) {
         CSGJSCPP_VECTOR<Vertex> triangle;
@@ -467,7 +464,7 @@ CSGJSCPP_VECTOR<Polygon> csgpolygon_cube(const Vector &center, const Vector &dim
             Vector pos(center.x + dim.x * (2.0f * !!(i & 1) - 1), center.y + dim.y * (2.0f * !!(i & 2) - 1),
                         center.z + dim.z * (2.0f * !!(i & 4) - 1));
 
-            verts.push_back({pos, q.normal, col});
+            verts.push_back({pos});
         }
         polygons.push_back(Polygon(verts));
     }
@@ -488,7 +485,7 @@ CSGJSCPP_VECTOR<Polygon> csgpolygon_sphere(const Vector &c, CSGJSCPP_REAL r, uin
         Vector dir((CSGJSCPP_REAL)cos(theta) * (CSGJSCPP_REAL)sin(phi), (CSGJSCPP_REAL)cos(phi),
                     (CSGJSCPP_REAL)sin(theta) * (CSGJSCPP_REAL)sin(phi));
 
-        return Vertex{c + (dir * r), dir, col};
+        return Vertex{c + (dir * r)};
     };
     for (CSGJSCPP_REAL i = 0; i < slices; i++) {
         for (CSGJSCPP_REAL j = 0; j < stacks; j++) {
@@ -523,8 +520,8 @@ CSGJSCPP_VECTOR<Polygon> csgpolygon_cylinder(const Vector &s, const Vector &e, C
     Vector axisX = unit(cross(Vector(isY, !isY, 0), axisZ));
     Vector axisY = unit(cross(axisX, axisZ));
 
-    Vertex start{s, -axisZ, col};
-    Vertex end{e, unit(axisZ), col};
+    Vertex start{s};
+    Vertex end{e};
 
     CSGJSCPP_VECTOR<Polygon> polygons;
 
@@ -534,7 +531,7 @@ CSGJSCPP_VECTOR<Polygon> csgpolygon_cylinder(const Vector &s, const Vector &e, C
         Vector        out = axisX * (CSGJSCPP_REAL)cos(angle) + axisY * (CSGJSCPP_REAL)sin(angle);
         Vector        pos = s + ray * stack + out * r;
         Vector        normal = out * (1.0f - fabsf(normalBlend)) + axisZ * normalBlend;
-        return Vertex{pos, normal, col};
+        return Vertex{pos};
     };
 
     for (CSGJSCPP_REAL i = 0; i < slices; i++) {

@@ -52,6 +52,16 @@ set( HEADERS
         include/ifcpp/Model/StatusCallback.h
         include/ifcpp/Model/UnitConverter.h
         include/ifcpp/Model/UnknownEntityException.h
+        include/ifcpp/Geometry/GeometryGenerator.h
+        include/ifcpp/Geometry/CAdapter.h
+        include/ifcpp/Geometry/Adapter.h
+        include/ifcpp/Geometry/GeometryConverter.h
+        include/ifcpp/Geometry/PrimitivesConverter.h
+        include/ifcpp/Geometry/Vector.h
+        include/ifcpp/Geometry/Parameters.h
+        include/ifcpp/Geometry/CurveConverter.h
+        include/ifcpp/Geometry/ProfileConverter.h
+        include/ifcpp/Geometry/GeomUtils.h
         ${IFC_HEADERS} )
 
 

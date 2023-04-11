@@ -1,3 +1,4 @@
+/*
 #include "ifcpp/Geometry/Geometry.h"
 
 #include "ifcpp/Geometry/Matrix.h"
@@ -53,8 +54,8 @@ using namespace IFC4X3;
 
 namespace ifcpp {
 
-std::vector<std::shared_ptr<Geometry>> GenerateGeometry( const std::shared_ptr<BuildingModel>& ifcModel ) {
-    std::vector<std::shared_ptr<Geometry>> geometry;
+std::vector<std::shared_ptr<Entity>> GenerateGeometry( const std::shared_ptr<BuildingModel>& ifcModel ) {
+    std::vector<std::shared_ptr<Entity>> geometry;
     auto lengthFactor = (float)ifcModel->getUnitConverter()->getLengthInMeterFactor();
     auto angleFactor = (float)ifcModel->getUnitConverter()->getAngleInRadiantFactor();
     for( const auto& idEntityPair: ifcModel->getMapIfcEntities() ) {
@@ -80,8 +81,8 @@ std::vector<std::shared_ptr<Geometry>> GenerateGeometry( const std::shared_ptr<B
     return geometry;
 }
 
-void SubtractOpenings( const std::shared_ptr<Geometry>& geometry, float lengthFactor, float angleFactor ) {
-    const shared_ptr<IfcElement> ifc_element = dynamic_pointer_cast<IfcElement>( geometry->m_object );
+void SubtractOpenings( const std::shared_ptr<Entity>& geometry, float lengthFactor, float angleFactor ) {
+    const shared_ptr<IfcElement> ifc_element = dynamic_pointer_cast<IfcElement>( geometry->m_ifcObject );
     if( !ifc_element ) {
         return;
     }
@@ -112,9 +113,9 @@ void SubtractOpenings( const std::shared_ptr<Geometry>& geometry, float lengthFa
     }
 }
 
-std::shared_ptr<Geometry> GenerateGeometryFromObject( const std::shared_ptr<IFC4X3::IfcObjectDefinition>& object, float lengthFactor, float angleFactor ) {
-    auto geometry = std::make_shared<Geometry>();
-    geometry->m_object = object;
+std::shared_ptr<Entity> GenerateGeometryFromObject( const std::shared_ptr<IFC4X3::IfcObjectDefinition>& object, float lengthFactor, float angleFactor ) {
+    auto geometry = std::make_shared<Entity>();
+    geometry->m_ifcObject = object;
     const auto product = dynamic_pointer_cast<IfcProduct>( object );
     if( !product ) {
         return geometry;
@@ -163,14 +164,6 @@ csgjscpp::Model ConvertGeometryRepresentation( const std::shared_ptr<IFC4X3::Ifc
     // IfcCompositeCurveSegment, IfcCsgPrimitive3D, IfcCurve, IfcDirection, IfcFaceBasedSurfaceModel, IfcFillAreaStyleHatching, IfcFillAreaStyleTiles,
     // IfcGeometricSet, IfcHalfSpaceSolid, IfcLightSource, IfcPlacement, IfcPlanarExtent, IfcPoint, IfcSectionedSpine, IfcShellBasedSurfaceModel,
     // IfcSolidModel, IfcSurface, IfcTessellatedItem, IfcTextLiteral, IfcVector))
-    /*
-            if( m_geom_settings->handleStyledItems() )
-            {
-                std::vector<std::shared_ptr<AppearanceData> > vec_appearance_data;
-                convertRepresentationStyle( geom_item, vec_appearance_data );
-                std::copy( vec_appearance_data.begin(), vec_appearance_data.end(), std::back_inserter( item_data->m_vec_item_appearances ) );
-            }
-            */
     auto color = GetColor( geometric );
     csgjscpp::Model result;
 
@@ -204,7 +197,7 @@ csgjscpp::Model ConvertGeometryRepresentation( const std::shared_ptr<IFC4X3::Ifc
 }
 
 
-csgjscpp::Model ConvertFaceBasedSurfaceModel( const std::shared_ptr<IFC4X3::IfcFaceBasedSurfaceModel>& surfaceModel, float angleFactor /* style data */ ) {
+csgjscpp::Model ConvertFaceBasedSurfaceModel( const std::shared_ptr<IFC4X3::IfcFaceBasedSurfaceModel>& surfaceModel, float angleFactor ) {
     std::vector<std::shared_ptr<IfcFace>> faces;
     for( const auto& face_set: surfaceModel->m_FbsmFaces ) {
         std::copy( face_set->m_CfsFaces.begin(), face_set->m_CfsFaces.end(), std::back_inserter( faces ) );
@@ -212,7 +205,7 @@ csgjscpp::Model ConvertFaceBasedSurfaceModel( const std::shared_ptr<IFC4X3::IfcF
     return ConvertFaceList( faces, angleFactor );
 }
 
-csgjscpp::Model ConvertShellBasedSurfaceModel( const std::shared_ptr<IFC4X3::IfcShellBasedSurfaceModel>& shellModel, float angleFactor /* style data */ ) {
+csgjscpp::Model ConvertShellBasedSurfaceModel( const std::shared_ptr<IFC4X3::IfcShellBasedSurfaceModel>& shellModel, float angleFactor ) {
     std::vector<std::shared_ptr<IfcFace>> faces;
     for( const auto& shell_select: shellModel->m_SbsmBoundary ) {
         const auto closed_shell = dynamic_pointer_cast<IfcClosedShell>( shell_select );
@@ -236,7 +229,8 @@ csgjscpp::Model ConvertBooleanResult( const std::shared_ptr<IFC4X3::IfcBooleanRe
 csgjscpp::Model ConvertSolidModel( const std::shared_ptr<IFC4X3::IfcSolidModel>& bool_result, float angleFactor ) {
     return convertIfcSolidModel( bool_result, angleFactor );
 }
-csgjscpp::Model ConvertSurface( const std::shared_ptr<IFC4X3::IfcSurface>& surface /*, style data*/ ) {
+csgjscpp::Model ConvertSurface( const std::shared_ptr<IFC4X3::IfcSurface>& surface ) {
     return {};
 }
 }
+*/

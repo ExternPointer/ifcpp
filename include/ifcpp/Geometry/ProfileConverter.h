@@ -30,10 +30,10 @@
 #include "ifcpp/Ifc/IfcRectangleHollowProfileDef.h"
 #include "ifcpp/Ifc/IfcRectangleProfileDef.h"
 #include "ifcpp/Ifc/IfcRoundedRectangleProfileDef.h"
+#include "ifcpp/Ifc/IfcTShapeProfileDef.h"
 #include "ifcpp/Ifc/IfcTrapeziumProfileDef.h"
 #include "ifcpp/Ifc/IfcUShapeProfileDef.h"
 #include "ifcpp/Ifc/IfcZShapeProfileDef.h"
-#include "ifcpp/Ifc/IfcTShapeProfileDef.h"
 
 
 namespace ifcpp {
@@ -107,14 +107,19 @@ private:
             }
         }
 
-        // TODO: Incorporate holes
+        const auto hole = this->m_geomUtils->CombineLoops( holes );
+        std::reverse( std::begin( hole ), std::end( hole ) );
 
-        return outer;
+        return this->m_geomUtils->CombineLoops( { outer, holes } );
     }
 
     TPath ConvertArbitraryOpenProfileDef( const shared_ptr<IfcArbitraryOpenProfileDef>& profile ) {
         shared_ptr<IfcCenterLineProfileDef> centerLineProfileDef = dynamic_pointer_cast<IfcCenterLineProfileDef>( profile );
-        if( centerLineProfileDef && centerLineProfileDef->m_Thickness ) {
+        if( centerLineProfileDef ) {
+            float thickness = 0.0f;
+            if( centerLineProfileDef->m_Thickness ) {
+                thickness = (float)centerLineProfileDef->m_Thickness->m_value;
+            }
             const auto curve = this->m_geomUtils->SimplifyLoop( this->m_curveConverter->ConvertCurve( centerLineProfileDef->m_Curve ) );
             if( curve.size() <= 1 ) {
                 return {};
@@ -129,14 +134,15 @@ private:
             normals.push_back( this->m_geomUtils->Normal2d( curve[ curve.size() - 2 ], curve[ curve.size() - 1 ] ) );
             std::vector<TVector> left, right;
             for( int i = 0; i < curve.size(); i++ ) {
-                left.push_back( curve[ i ] - normals[ i ] * (float)centerLineProfileDef->m_Thickness->m_value * 0.5f );
-                right.push_back( curve[ i ] + normals[ i ] * (float)centerLineProfileDef->m_Thickness->m_value * 0.5f );
+                left.push_back( curve[ i ] - normals[ i ] * thickness * 0.5f );
+                right.push_back( curve[ i ] + normals[ i ] * thickness * 0.5f );
             }
             auto result = left;
             std::back_inserter( std::rbegin( right ), std::rend( right ), result );
-            return result;
+            return this->m_geomUtils->SimplifyLoop( result );
         }
-        return this->m_geomUtils->SimplifyLoop( this->m_curveConverter->ConvertCurve( profile->m_Curve ) );
+        // TODO: Log error
+        return {};
     }
 
     TPath ConvertCompositeProfileDef( const shared_ptr<IfcCompositeProfileDef>& profile ) {
@@ -144,8 +150,7 @@ private:
         for( const auto& p: profile->m_Profiles ) {
             paths.push_back( this->ConvertProfile( p ) );
         }
-        // TODO: Merge profiles
-        return {};
+        return this->m_geomUtils->CombineLoops( paths );
     }
 
     TPath ConvertDerivedProfileDef( const shared_ptr<IfcDerivedProfileDef>& profile ) {
@@ -224,8 +229,8 @@ private:
                     inner.push_back( AVector::Mew( xDim * 0.5, yDim * 0.5 ) );
                     inner.push_back( AVector::Mew( -xDim * 0.5, yDim * 0.5 ) );
                 }
-                // TODO: Incorporate hole (inner)
-                return outer;
+                std::reverse( std::begin( inner ), std::end( inner ) );
+                return this->m_geomUtils->CombineLoops( { outer, inner } );
             }
 
             const auto rounded_rectangle = dynamic_pointer_cast<IfcRoundedRectangleProfileDef>( rectangle );
@@ -281,8 +286,8 @@ private:
                 // TODO: getNumVerticesPerCircleWithRadius
                 inner = this->m_geomUtils->BuildCircle( radius, 0.0f, M_PI * 2, this->m_parameters->m_NumVerticesPerCircle );
             }
-            // TODO: Incorporate hole
-            return outer;
+            std::reverse( std::begin( inner ), std::end( inner ) );
+            return this->m_geomUtils->CombineLoops( { outer, inner } );
         }
 
         const auto ellipse_profile_def = dynamic_pointer_cast<IfcEllipseProfileDef>( profile );
@@ -568,7 +573,7 @@ private:
             const float zw = tanf( web_slope ) * ( h * 0.5f - web_edge_radius );
             if( flange_edge_radius > this->m_parameters->m_epsilon ) {
                 this->AddArc( &result, flange_edge_radius, M_PI, M_PI_2 - flange_slope, -width * 0.5 + flange_edge_radius,
-                        h * 0.5 - tf + zf + flange_edge_radius );
+                              h * 0.5 - tf + zf + flange_edge_radius );
             } else {
                 result.push_back( AVector::New( -width * 0.5, ( h * 0.5 - tf + zf ) ) );
             }
@@ -577,14 +582,14 @@ private:
             const float sf = sinf( flange_slope );
             const float cw = cosf( web_slope );
             const float sw = sinf( web_slope );
-            const float z1 =
-                ( sf *
-                  ( ( width - 2.0f * ( fillet_radius + flange_edge_radius + tw - zw ) ) * cw - 2.0f * ( h - web_edge_radius - fillet_radius - tf + zf ) * sw ) ) /
+            const float z1 = ( sf *
+                               ( ( width - 2.0f * ( fillet_radius + flange_edge_radius + tw - zw ) ) * cw -
+                                 2.0f * ( h - web_edge_radius - fillet_radius - tf + zf ) * sw ) ) /
                 ( 2.0f * ( cf * cw - sf * sw ) );
             const double z2 = tan( web_slope ) * ( h - web_edge_radius - fillet_radius - z1 - tf + zf );
             if( fillet_radius > this->m_parameters->m_epsilon ) {
                 this->AddArc( &result, fillet_radius, M_PI_2 - flange_slope, -M_PI_2 + flange_slope + web_slope, -tw + zw - z2 - fillet_radius,
-                        h * 0.5 - tf + zf - z1 - fillet_radius );
+                              h * 0.5 - tf + zf - z1 - fillet_radius );
             } else {
                 result.push_back( AVector::New( ( -tw + zw - z2 ), ( h * 0.5 - tf + zf - z1 ) ) );
             }

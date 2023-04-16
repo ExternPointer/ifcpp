@@ -247,7 +247,7 @@ public:
             result.insert( std::begin( result ) + inResultIdx, result[ inResultIdx ] );
             result.insert( std::begin( result ) + inResultIdx + 1, loopToInsert );
         }
-        return result;
+        return this->SimplifyLoop( result );
     }
     std::vector<TVector> BuildEllipse( float radius1, float radius2, float startAngle, float openingAngle, int verticesCount, TVector center ) const {
         std::vector<TVector> points;

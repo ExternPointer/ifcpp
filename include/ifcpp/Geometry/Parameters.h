@@ -11,6 +11,7 @@ public:
     int	m_NumVerticesPerCircle;
     int m_minNumVerticesPerArc;
     float m_modelMaxSize;
+    int m_numVerticesPerControlPoint;
 };
 
 }

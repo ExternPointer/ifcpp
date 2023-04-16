@@ -6,6 +6,7 @@
 #include "ifcpp/Geometry/Parameters.h"
 #include "ifcpp/Geometry/PrimitivesConverter.h"
 #include "ifcpp/Geometry/Vector.h"
+#include "ifcpp/Geometry/SplineConverter.h"
 
 #include "ifcpp/Ifc/IfcArcIndex.h"
 #include "ifcpp/Ifc/IfcBSplineCurve.h"
@@ -45,13 +46,15 @@ class CurveConverter {
 
     std::shared_ptr<PrimitivesConverter<TVector>> m_primitivesConverter;
     std::shared_ptr<GeomUtils<TVector>> m_geomUtils;
+    std::shared_ptr<SplineConverter<TVector>> m_splineConverter;
     std::shared_ptr<Parameters> m_parameters;
 
 public:
     CurveConverter( const std::shared_ptr<PrimitivesConverter<TVector>>& primitivesConverter, const std::shared_ptr<GeomUtils<TVector>>& geomUtils,
-                    const std::shared_ptr<Parameters>& parameters )
+                    const std::shared_ptr<SplineConverter<TVector>> splineConverter, const std::shared_ptr<Parameters>& parameters )
         : m_primitivesConverter( primitivesConverter )
         , m_geomUtils( geomUtils )
+        , m_splineConverter( splineConverter )
         , m_parameters( parameters ) {
     }
 
@@ -80,12 +83,12 @@ public:
                         // TODO: Log error
                     }
                 }
-                return result;
+                return this->m_geomUtils->SimplifyCurve( result );
             }
 
             const auto polyLine = dynamic_pointer_cast<IfcPolyline>( curve );
             if( polyLine ) {
-                return this->m_primitivesConverter->ConvertPoints( polyLine->m_Points );
+                return this->m_geomUtils->SimplifyCurve( this->m_primitivesConverter->ConvertPoints( polyLine->m_Points ) );
             }
 
             const auto trimmedCurve = dynamic_pointer_cast<IfcTrimmedCurve>( boundedCurve );
@@ -137,8 +140,7 @@ public:
 
             const auto bsplineCurve = dynamic_pointer_cast<IfcBSplineCurve>( boundedCurve );
             if( bsplineCurve ) {
-                // TODO: Implement
-                return this->m_primitivesConverter->ConvertPoints( bsplineCurve->m_ControlPointsList );
+                return this->m_splineConverter->ConvertBSplineCurve( bsplineCurve );
             }
 
             const auto indexedPolyCurve = dynamic_pointer_cast<IfcIndexedPolyCurve>( boundedCurve );

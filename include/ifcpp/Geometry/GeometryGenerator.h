@@ -52,6 +52,7 @@ public:
             14,
             5,
             10000,
+            4,
         } );
         this->m_primitivesConverter = std::make_shared<PrimitivesConverter<TVector>>();
         this->m_curveConverter = std::make_shared<CurveConverter<TVector>>( this->m_primitivesConverter, this->m_parameters );

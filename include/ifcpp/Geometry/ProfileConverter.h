@@ -13,11 +13,27 @@
 #include "ifcpp/Ifc/IfcArbitraryClosedProfileDef.h"
 #include "ifcpp/Ifc/IfcArbitraryOpenProfileDef.h"
 #include "ifcpp/Ifc/IfcArbitraryProfileDefWithVoids.h"
+#include "ifcpp/Ifc/IfcAsymmetricIShapeProfileDef.h"
+#include "ifcpp/Ifc/IfcCShapeProfileDef.h"
 #include "ifcpp/Ifc/IfcCenterLineProfileDef.h"
+#include "ifcpp/Ifc/IfcCircleHollowProfileDef.h"
+#include "ifcpp/Ifc/IfcCircleProfileDef.h"
 #include "ifcpp/Ifc/IfcCompositeProfileDef.h"
 #include "ifcpp/Ifc/IfcDerivedProfileDef.h"
+#include "ifcpp/Ifc/IfcEllipseProfileDef.h"
+#include "ifcpp/Ifc/IfcIShapeProfileDef.h"
+#include "ifcpp/Ifc/IfcLShapeProfileDef.h"
+#include "ifcpp/Ifc/IfcNonNegativeLengthMeasure.h"
 #include "ifcpp/Ifc/IfcParameterizedProfileDef.h"
+#include "ifcpp/Ifc/IfcPlaneAngleMeasure.h"
 #include "ifcpp/Ifc/IfcProfileDef.h"
+#include "ifcpp/Ifc/IfcRectangleHollowProfileDef.h"
+#include "ifcpp/Ifc/IfcRectangleProfileDef.h"
+#include "ifcpp/Ifc/IfcRoundedRectangleProfileDef.h"
+#include "ifcpp/Ifc/IfcTrapeziumProfileDef.h"
+#include "ifcpp/Ifc/IfcUShapeProfileDef.h"
+#include "ifcpp/Ifc/IfcZShapeProfileDef.h"
+#include "ifcpp/Ifc/IfcTShapeProfileDef.h"
 
 
 namespace ifcpp {
@@ -157,13 +173,490 @@ private:
     }
 
     TPath ConvertParameterizedProfileDefWithoutPosition( const shared_ptr<IfcParameterizedProfileDef>& profile ) {
-        //IfcParameterizedProfileDef ABSTRACT SUPERTYPE OF (ONEOF
+        // IfcParameterizedProfileDef ABSTRACT SUPERTYPE OF (ONEOF
         //	(IfcCShapeProfileDef, IfcCircleProfileDef, IfcEllipseProfileDef, IfcIShapeProfileDef, IfcLShapeProfileDef,
         //	IfcRectangleProfileDef, IfcTShapeProfileDef, IfcTrapeziumProfileDef, IfcUShapeProfileDef, IfcZShapeProfileDef))
 
+        const auto rectangle = dynamic_pointer_cast<IfcRectangleProfileDef>( profile );
+        if( rectangle && rectangle->m_XDim && rectangle->m_YDim ) {
+            auto xDim = (float)rectangle->m_XDim->m_value;
+            auto yDim = (float)rectangle->m_YDim->m_value;
 
+            const auto hollow = dynamic_pointer_cast<IfcRectangleHollowProfileDef>( rectangle );
+            if( hollow && hollow->m_WallThickness ) {
+                TPath outer;
+                TPath inner;
+
+                const auto t = (float)hollow->m_WallThickness->m_value;
+                const auto outerR = (float)hollow->m_OuterFilletRadius->m_value;
+                const auto innerR = (float)hollow->m_InnerFilletRadius->m_value;
+
+                if( outerR > this->m_parameters->m_epsilon ) {
+                    this->m_geomUtils->AppendToLoop(
+                        &outer, this->m_geomUtils->BuildCircle( outerR, 0, M_PI_2, 5, AVector::New( xDim * 0.5 - outerR, yDim * 0.5 - outerR ) ) );
+                    this->m_geomUtils->AppendToLoop(
+                        &outer, this->m_geomUtils->BuildCircle( outerR, M_PI_2, M_PI_2, AVector::New( -xDim * 0.5 + outerR, yDim * 0.5 - outerR ) ) );
+                    this->m_geomUtils->AppendToLoop(
+                        &outer, this->m_geomUtils->BuildCircle( outerR, M_PI, M_PI_2, AVector::New( -xDim * 0.5 + outerR, -yDim * 0.5 + outerR ) ) );
+                    this->m_geomUtils->AppendToLoop(
+                        &outer, this->m_geomUtils->BuildCircle( outerR, 3 * M_PI_2, M_PI_2, AVector::New( xDim * 0.5 - outerR, -yDim * 0.5 + outerR ) ) );
+                } else {
+                    outer.push_back( AVector::Mew( -xDim * 0.5, -yDim * 0.5 ) );
+                    outer.push_back( AVector::Mew( xDim * 0.5, -yDim * 0.5 ) );
+                    outer.push_back( AVector::Mew( xDim * 0.5, yDim * 0.5 ) );
+                    outer.push_back( AVector::Mew( -xDim * 0.5, yDim * 0.5 ) );
+                }
+
+                xDim -= 2 * t;
+                yDim -= 2 * t;
+                if( innerR > this->m_parameters->m_epsilon ) {
+                    this->m_geomUtils->AppendToLoop(
+                        &inner, this->m_geomUtils->BuildCircle( outerR, 0, M_PI_2, 5, AVector::New( xDim * 0.5 - outerR, yDim * 0.5 - innerR ) ) );
+                    this->m_geomUtils->AppendToLoop(
+                        &inner, this->m_geomUtils->BuildCircle( outerR, M_PI_2, M_PI_2, AVector::New( -xDim * 0.5 + outerR, yDim * 0.5 - innerR ) ) );
+                    this->m_geomUtils->AppendToLoop(
+                        &inner, this->m_geomUtils->BuildCircle( outerR, M_PI, M_PI_2, AVector::New( -xDim * 0.5 + outerR, -yDim * 0.5 + innerR ) ) );
+                    this->m_geomUtils->AppendToLoop(
+                        &inner, this->m_geomUtils->BuildCircle( outerR, 3 * M_PI_2, M_PI_2, AVector::New( xDim * 0.5 - outerR, -yDim * 0.5 + innerR ) ) );
+                } else {
+                    inner.push_back( AVector::Mew( -xDim * 0.5, -yDim * 0.5 ) );
+                    inner.push_back( AVector::Mew( xDim * 0.5, -yDim * 0.5 ) );
+                    inner.push_back( AVector::Mew( xDim * 0.5, yDim * 0.5 ) );
+                    inner.push_back( AVector::Mew( -xDim * 0.5, yDim * 0.5 ) );
+                }
+                // TODO: Incorporate hole (inner)
+                return outer;
+            }
+
+            const auto rounded_rectangle = dynamic_pointer_cast<IfcRoundedRectangleProfileDef>( rectangle );
+            if( rounded_rectangle && rounded_rectangle->m_RoundingRadius ) {
+                TPath result;
+                const auto radius = (float)rounded_rectangle->m_RoundingRadius->m_value;
+                this->m_geomUtils->AppendToLoop(
+                    &result, this->m_geomUtils->BuildCircle( radius, 0, M_PI_2, 5, AVector::New( xDim * 0.5 - radius, yDim * 0.5 - radius ) ) );
+                this->m_geomUtils->AppendToLoop(
+                    &result, this->m_geomUtils->BuildCircle( radius, M_PI_2, M_PI_2, AVector::New( -xDim * 0.5 + radius, yDim * 0.5 - radius ) ) );
+                this->m_geomUtils->AppendToLoop(
+                    &result, this->m_geomUtils->BuildCircle( radius, M_PI, M_PI_2, AVector::New( -xDim * 0.5 + radius, -yDim * 0.5 + radius ) ) );
+                this->m_geomUtils->AppendToLoop(
+                    &result, this->m_geomUtils->BuildCircle( radius, 3 * M_PI_2, M_PI_2, AVector::New( xDim * 0.5 - radius, -yDim * 0.5 + radius ) ) );
+                return result;
+            }
+
+            return {
+                AVector::New( -xDim * 0.5, -yDim * 0.5 ),
+                AVector::New( xDim * 0.5, -yDim * 0.5 ),
+                AVector::New( xDim * 0.5, yDim * 0.5 ),
+                AVector::New( -xDim * 0.5, yDim * 0.5 ),
+            };
+        }
+
+        const auto trapezium = dynamic_pointer_cast<IfcTrapeziumProfileDef>( profile );
+        if( trapezium && trapezium->m_BottomXDim && trapezium->m_TopXDim && trapezium->m_TopXOffset && trapezium->m_YDim ) {
+            const auto x_bottom = (float)trapezium->m_BottomXDim->m_value;
+            const auto x_top = (float)trapezium->m_TopXDim->m_value;
+            const auto x_offset = (float)trapezium->m_TopXOffset->m_value;
+            const auto y_dim = (float)trapezium->m_YDim->m_value;
+            return {
+                AVector::New( -x_bottom * 0.5, -y_dim * 0.5 ),
+                AVector::New( x_bottom * 0.5, -y_dim * 0.5 ),
+                AVector::New( -x_bottom * 0.5 + x_offset + x_top, y_dim * 0.5 ),
+                AVector::New( -x_bottom * 0.5 + x_offset, y_dim * 0.5 ),
+            };
+        }
+
+        shared_ptr<IfcCircleProfileDef> circle_profile_def = dynamic_pointer_cast<IfcCircleProfileDef>( profile );
+        if( circle_profile_def && circle_profile_def->m_Radius ) {
+            TPath outer, inner;
+            auto radius = (float)circle_profile_def->m_Radius->m_value;
+            if( radius < this->m_parameters->m_epsilon ) {
+                return {};
+            }
+            // TODO: getNumVerticesPerCircleWithRadius
+            outer = this->m_geomUtils->BuildCircle( radius, 0.0f, M_PI * 2, this->m_parameters->m_NumVerticesPerCircle );
+
+            const auto hollow = dynamic_pointer_cast<IfcCircleHollowProfileDef>( profile );
+            if( hollow ) {
+                radius -= (float)hollow->m_WallThickness->m_value;
+                // TODO: getNumVerticesPerCircleWithRadius
+                inner = this->m_geomUtils->BuildCircle( radius, 0.0f, M_PI * 2, this->m_parameters->m_NumVerticesPerCircle );
+            }
+            // TODO: Incorporate hole
+            return outer;
+        }
+
+        const auto ellipse_profile_def = dynamic_pointer_cast<IfcEllipseProfileDef>( profile );
+        if( ellipse_profile_def && ellipse_profile_def->m_SemiAxis1 && ellipse_profile_def->m_SemiAxis2 ) {
+            double x_radius = ellipse_profile_def->m_SemiAxis1->m_value;
+            double y_radius = ellipse_profile_def->m_SemiAxis2->m_value;
+            // TODO: getNumVerticesPerCircleWithRadius
+            return this->m_geomUtils->BuildCircle( 0.0f, (float)( M_PI * 2 ), x_radius, y_radius, this->m_parameters->m_NumVerticesPerCircle );
+        }
+
+        const auto i_shape = dynamic_pointer_cast<IfcIShapeProfileDef>( profile );
+        if( i_shape && i_shape->m_OverallDepth && i_shape->m_OverallWidth && i_shape->m_WebThickness && i_shape->m_FlangeThickness ) {
+            const auto h = (float)i_shape->m_OverallDepth->m_value;
+            const auto width = (float)i_shape->m_OverallWidth->m_value;
+            const auto tw = (float)i_shape->m_WebThickness->m_value;
+            const auto tf = (float)i_shape->m_FlangeThickness->m_value;
+            const auto fillet_radius = (float)i_shape->m_FilletRadius->m_value;
+            const auto flange_edge_radius = (float)i_shape->m_FlangeEdgeRadius->m_value;
+            TPath result;
+
+            result.push_back( AVector::New( width * 0.5f, -h * 0.5f ) );
+
+            // TODO: implement flange slope
+            if( flange_edge_radius > this->m_parameters->m_epsilon ) {
+                this->m_geomUtils->AppendToLoop( &result,
+                                                 this->m_geomUtils->BuildCircle( flange_edge_radius, 0, M_PI_2, this->m_parameters->m_NumVerticesPerCircle,
+                                                                                 width * 0.5f - flange_edge_radius, -h * 0.5f + tf - flange_edge_radius ) );
+            } else {
+                result.push_back( AVector::New( width * 0.5f, -h * 0.5f + tf ) );
+            }
+            if( fillet_radius > this->m_parameters->m_epsilon ) {
+                this->m_geomUtils->AppendToLoop( &result,
+                                                 this->m_geomUtils->BuildCircle( fillet_radius, 3 * M_PI_2, -M_PI_2, this->m_parameters->m_NumVerticesPerCircle,
+                                                                                 tw * 0.5f + fillet_radius, -h * 0.5f + tf + fillet_radius ) );
+            } else {
+                result.push_back( AVector::New( tw * 0.5f, ( -h * 0.5f + tf ) ) );
+            }
+
+            const auto asym_I_profile = dynamic_pointer_cast<IfcAsymmetricIShapeProfileDef>( i_shape );
+            if( asym_I_profile ) {
+                if( asym_I_profile->m_TopFlangeWidth ) {
+                    const auto width_top = (float)asym_I_profile->m_TopFlangeWidth->m_value;
+                    float tfTop = tf;
+
+                    if( asym_I_profile->m_TopFlangeThickness ) {
+                        tfTop = (float)asym_I_profile->m_TopFlangeThickness->m_value;
+                    }
+                    float rTop = fillet_radius;
+                    if( asym_I_profile->m_TopFlangeFilletRadius ) {
+                        rTop = (float)asym_I_profile->m_TopFlangeFilletRadius->m_value;
+                    }
+
+                    if( rTop > this->m_parameters->m_epsilon ) {
+                        this->AddArc( &result, rTop, (float)M_PI, (float)-M_PI_2, tw * 0.5f + rTop, h * 0.5f - tfTop - rTop );
+                    } else {
+                        result.push_back( AVector::New( tw * 0.5f, ( h * 0.5f - tfTop ) ) );
+                    }
+                    result.push_back( AVector::New( width_top * 0.5f, ( h * 0.5f - tfTop ) ) );
+                    result.push_back( AVector::New( width_top * 0.5f, h * 0.5f ) );
+                }
+            } else {
+                this->MirrorCopyPathReverse( &result, false, true );
+            }
+
+            this->MirrorCopyPathReverse( &result, true, false );
+            return result;
+        }
+
+        const auto l_shape = dynamic_pointer_cast<IfcLShapeProfileDef>( profile );
+        if( l_shape && l_shape->m_Depth && l_shape->m_Thickness ) {
+            TPath result;
+            const auto h = (float)l_shape->m_Depth->m_value;
+            float w = h;
+
+            if( l_shape->m_Width ) {
+                w = (float)l_shape->m_Width->m_value;
+            }
+
+            auto t = (float)l_shape->m_Thickness->m_value;
+
+            float fillet_radius = 0;
+            if( l_shape->m_FilletRadius ) {
+                fillet_radius = (float)l_shape->m_FilletRadius->m_value;
+            }
+
+            float edge_radius = 0;
+            if( l_shape->m_EdgeRadius ) {
+                edge_radius = (float)l_shape->m_EdgeRadius->m_value;
+            }
+
+            float leg_slope = 0;
+            if( l_shape->m_LegSlope ) {
+                leg_slope = (float)l_shape->m_LegSlope->m_value * this->m_parameters->m_angleFactor;
+            }
+
+            result.push_back( AVector::New( -w * 0.5f, -h * 0.5f ) );
+            result.push_back( AVector::New( w * 0.5f, -h * 0.5f ) );
+
+            if( edge_radius > this->m_parameters->m_epsilon ) {
+                float y_edge_radius_start = -h * 0.5f + t - edge_radius;
+                this->AddArc( &result, edge_radius, 0, M_PI_2 - leg_slope, w * 0.5 - edge_radius, y_edge_radius_start );
+            } else {
+                result.push_back( AVector::New( w * 0.5, ( -h * 0.5 + t ) ) );
+            }
+
+            const float s = sinf( leg_slope );
+            const float c = cosf( leg_slope );
+            const float z1 = ( -s * ( ( c - s ) * ( fillet_radius + edge_radius + t ) - c * w + s * h ) ) / ( 2 * c * c - 1 );
+            const float z2 = ( -s * ( ( c - s ) * ( fillet_radius + edge_radius + t ) - c * h + s * w ) ) / ( 2 * c * c - 1 );
+            if( fillet_radius > this->m_parameters->m_epsilon ) {
+                this->AddArc( &result, fillet_radius, 3 * M_PI_2 - leg_slope, -M_PI_2 + 2 * leg_slope, -w * 0.5 + t + z2 + fillet_radius,
+                              -h * 0.5 + t + z1 + fillet_radius );
+            } else {
+                result.push_back( AVector::New( ( -w * 0.5 + t + z2 ), ( -h * 0.5 + t + z1 ) ) );
+            }
+
+            if( edge_radius > this->m_parameters->m_epsilon ) {
+                this->AddArc( &result, edge_radius, leg_slope, M_PI_2 - leg_slope, -w * 0.5 + t - edge_radius, h * 0.5 - edge_radius );
+            } else {
+                result.push_back( AVector::New( ( -w * 0.5 + t ), h * 0.5 ) );
+            }
+
+            result.push_back( AVector::New( -w * 0.5f, h * 0.5f ) );
+            return result;
+        }
+
+        const auto u_shape = dynamic_pointer_cast<IfcUShapeProfileDef>( profile );
+        if( u_shape && u_shape->m_Depth && u_shape->m_FlangeWidth && u_shape->m_WebThickness && u_shape->m_FlangeThickness ) {
+            TPath result;
+            const auto height = (float)u_shape->m_Depth->m_value;
+            const auto width = (float)u_shape->m_FlangeWidth->m_value;
+            const auto tw = (float)u_shape->m_WebThickness->m_value;
+            const auto tf = (float)u_shape->m_FlangeThickness->m_value;
+            float fillet_radius = 0;
+            if( u_shape->m_FilletRadius ) {
+                fillet_radius = (float)u_shape->m_FilletRadius->m_value;
+            }
+            float edge_radius = 0;
+            if( u_shape->m_EdgeRadius ) {
+                edge_radius = (float)u_shape->m_EdgeRadius->m_value;
+            }
+            float fs = 0;
+            if( u_shape->m_FlangeSlope ) {
+                fs = (float)u_shape->m_FlangeSlope->m_value * this->m_parameters->m_angleFactor;
+            }
+
+            result.push_back( AVector::New( -width * 0.5f, -height * 0.5f ) );
+            result.push_back( AVector::New( width * 0.5f, -height * 0.5f ) );
+
+            float z = std::tanf( fs ) * ( width * 0.5f - edge_radius );
+            if( edge_radius > this->m_parameters->m_epsilon ) {
+                this->AddArc( &result, edge_radius, 0, M_PI_2 - fs, width * 0.5 - edge_radius, -height * 0.5 + tf - z - edge_radius );
+            } else {
+                result.push_back( AVector::New( width * 0.5, ( -height * 0.5 + tf - z ) ) );
+            }
+
+            z = tanf( fs ) * ( width * 0.5f - tw - fillet_radius );
+            if( fillet_radius > this->m_parameters->m_epsilon ) {
+                this->AddArc( &result, fillet_radius, 3 * M_PI_2 - fs, -M_PI_2 + fs, -width * 0.5 + tw + fillet_radius,
+                              -height * 0.5 + tf + z + fillet_radius );
+            } else {
+                result.push_back( AVector::New( ( -width * 0.5f + tw ), ( -height * 0.5f + tf + z ) ) );
+            }
+
+            this->MirrorCopyPathReverse( result, false, true );
+            return result;
+        }
+
+        const auto c_shape = dynamic_pointer_cast<IfcCShapeProfileDef>( profile );
+        if( c_shape && c_shape->m_Depth && c_shape->m_Width && c_shape->m_Girth && c_shape->m_WallThickness ) {
+            TPath result;
+            const auto h = (float)c_shape->m_Depth->m_value;
+            const auto width = (float)c_shape->m_Width->m_value;
+            const auto g = (float)c_shape->m_Girth->m_value;
+            const auto t = (float)c_shape->m_WallThickness->m_value;
+            float fillet_radius = 0;
+            if( c_shape->m_InternalFilletRadius ) {
+                fillet_radius = (float)c_shape->m_InternalFilletRadius->m_value;
+            }
+
+            if( fillet_radius > this - m_parameters->m_epsilon ) {
+                this->AddArc( &result, fillet_radius + t, M_PI, M_PI_2, -width * 0.5 + t + fillet_radius, -h * 0.5 + t + fillet_radius );
+            } else {
+                result.push_back( AVector::New( -width * 0.5, -h * 0.5 ) );
+            }
+
+            if( fillet_radius != 0 ) {
+                this->AddArc( &result, fillet_radius + t, 3 * M_PI_2, M_PI_2, width * 0.5 - t - fillet_radius, -h * 0.5 + t + fillet_radius );
+            } else {
+                result.push_back( AVector::New( width * 0.5f, -h * 0.5f ) );
+            }
+
+            result.push_back( AVector::New( width * 0.5, ( -h * 0.5 + g ) ) );
+            result.push_back( AVector::New( ( width * 0.5 - t ), ( -h * 0.5 + g ) ) );
+
+            if( fillet_radius > this->m_parameters->m_epsilon ) {
+                this->AddArc( &result, fillet_radius, 0, -M_PI_2, width * 0.5 - t - fillet_radius, -h * 0.5 + t + fillet_radius );
+            } else {
+                result.push_back( AVector::New( ( width * 0.5f - t ), ( -h * 0.5f + t ) ) );
+            }
+
+            if( fillet_radius > this->m_parameters->m_epsilon ) {
+                this->AddArc( &result, fillet_radius, 3 * M_PI_2, -M_PI_2, -width * 0.5 + t + fillet_radius, -h * 0.5 + t + fillet_radius );
+            } else {
+                result.push_back( AVector::New( ( -width * 0.5f + t ), ( -h * 0.5f + t ) ) );
+            }
+            this->MirrorCopyPathReverse( &result, false, true );
+            return result;
+        }
+
+        const auto z_shape = dynamic_pointer_cast<IfcZShapeProfileDef>( profile );
+        if( z_shape && z_shape->m_Depth && z_shape->m_FlangeWidth && z_shape->m_WebThickness && z_shape->m_FlangeThickness ) {
+            TPath result;
+            const auto h = (float)z_shape->m_Depth->m_value;
+            const auto width = (float)z_shape->m_FlangeWidth->m_value;
+            const auto tw = (float)z_shape->m_WebThickness->m_value;
+            const auto tf = (float)z_shape->m_FlangeThickness->m_value;
+            float fillet_radius = 0;
+            if( z_shape->m_FilletRadius ) {
+                fillet_radius = (float)z_shape->m_FilletRadius->m_value;
+            }
+
+            float edge_radius = 0;
+            if( z_shape->m_EdgeRadius ) {
+                edge_radius = (float)z_shape->m_EdgeRadius->m_value;
+            }
+
+            result.push_back( AVector::New( ( -tw * 0.5f ), -h * 0.5f ) );
+            result.push_back( AVector::New( ( width - tw * 0.5f ), -h * 0.5f ) );
+
+            if( edge_radius > this->m_parameters->m_epsilon ) {
+                this->AddArc( &result, edge_radius, 0, M_PI_2, width - tw * 0.5 - edge_radius, -h * 0.5 + tf - edge_radius );
+            } else {
+                result.push_back( AVector::New( ( width - tw * 0.5 ), ( -h * 0.5 + tf ) ) );
+            }
+
+            if( fillet_radius > this->m_parameters->m_epsilon ) {
+                this->AddArc( &result, fillet_radius, 3 * M_PI_2, -M_PI_2, tw * 0.5 + fillet_radius, -h * 0.5 + tf + fillet_radius );
+            } else {
+                result.push_back( AVector::New( ( tw * 0.5 ), ( -h * 0.5 + tf ) ) );
+            }
+
+            this->MirrorCopyPath( &result, true, true );
+            return;
+        }
+
+        shared_ptr<IfcTShapeProfileDef> t_shape = dynamic_pointer_cast<IfcTShapeProfileDef>( profile );
+        if( t_shape ) {
+            TPath result;
+            const auto h = (float)t_shape->m_Depth->m_value;
+            const auto width = (float)t_shape->m_FlangeWidth->m_value;
+            const auto tw = (float)t_shape->m_WebThickness->m_value * 0.5f;
+            const auto tf = (float)t_shape->m_FlangeThickness->m_value;
+
+            float fillet_radius = 0;
+            if( t_shape->m_FilletRadius ) {
+                fillet_radius = (float)t_shape->m_FilletRadius->m_value;
+            }
+
+            float flange_edge_radius = 0;
+            if( t_shape->m_FlangeEdgeRadius ) {
+                flange_edge_radius = (float)t_shape->m_FlangeEdgeRadius->m_value;
+            }
+
+            float web_edge_radius = 0;
+            if( t_shape->m_WebEdgeRadius ) {
+                web_edge_radius = (float)t_shape->m_WebEdgeRadius->m_value;
+            }
+            float flange_slope = 0;
+
+            if( t_shape->m_FlangeSlope ) {
+                flange_slope = (float)t_shape->m_FlangeSlope->m_value * this->m_parameters->m_angleFactor;
+            }
+
+            float web_slope = 0;
+            if( t_shape->m_WebSlope ) {
+                web_slope = (float)t_shape->m_WebSlope->m_value * this->m_parameters->m_angleFactor;
+            }
+
+            result.push_back( AVector::New( -width * 0.5f, h * 0.5f ) );
+
+            const float zf = tanf( flange_slope ) * ( width * 0.25f - flange_edge_radius );
+            const float zw = tanf( web_slope ) * ( h * 0.5f - web_edge_radius );
+            if( flange_edge_radius > this->m_parameters->m_epsilon ) {
+                this->AddArc( &result, flange_edge_radius, M_PI, M_PI_2 - flange_slope, -width * 0.5 + flange_edge_radius,
+                        h * 0.5 - tf + zf + flange_edge_radius );
+            } else {
+                result.push_back( AVector::New( -width * 0.5, ( h * 0.5 - tf + zf ) ) );
+            }
+
+            const float cf = cosf( flange_slope );
+            const float sf = sinf( flange_slope );
+            const float cw = cosf( web_slope );
+            const float sw = sinf( web_slope );
+            const float z1 =
+                ( sf *
+                  ( ( width - 2.0f * ( fillet_radius + flange_edge_radius + tw - zw ) ) * cw - 2.0f * ( h - web_edge_radius - fillet_radius - tf + zf ) * sw ) ) /
+                ( 2.0f * ( cf * cw - sf * sw ) );
+            const double z2 = tan( web_slope ) * ( h - web_edge_radius - fillet_radius - z1 - tf + zf );
+            if( fillet_radius > this->m_parameters->m_epsilon ) {
+                this->AddArc( &result, fillet_radius, M_PI_2 - flange_slope, -M_PI_2 + flange_slope + web_slope, -tw + zw - z2 - fillet_radius,
+                        h * 0.5 - tf + zf - z1 - fillet_radius );
+            } else {
+                result.push_back( AVector::New( ( -tw + zw - z2 ), ( h * 0.5 - tf + zf - z1 ) ) );
+            }
+
+            if( web_edge_radius > this->m_parameters->m_epsilon ) {
+                double x_center = -tw + zw + web_edge_radius;
+                if( x_center > 0 ) {
+                    x_center = 0;
+                }
+                this->AddArc( &result, web_edge_radius, M_PI + web_slope, M_PI_2 - web_slope, x_center, -h * 0.5 + web_edge_radius );
+                while( result.size() > 0 ) {
+                    if( result.back().x < 0 ) {
+                        break;
+                    }
+                    result.pop_back();
+                }
+                result.push_back( AVector::New( 0, -h * 0.5 ) );
+            } else {
+                result.push_back( AVector::New( ( -tw + zw ), -h * 0.5 ) );
+            }
+
+            // mirror vertically along y-Axis
+            this->MirrorCopyPathReverse( &result, true, false );
+            return result;
+        }
+
+
+        // TODO: Log error (unknown profile)
     }
 
-};
+    void AddArc( TPath* path, float radius, float startAngle, float openningAngle, float x, float y ) {
+        this->m_geomUtils->AppendToLoop(
+            path, this->m_geomUtils->BuildCircle( radius, startAngle, openningAngle, this->m_parameters->m_NumVerticesPerCircle, x, y ) );
+    }
 
+    static void MirrorCopyPath( TPath* coords, bool mirror_on_y_axis, bool mirror_on_x_axis ) {
+        int points_count = coords->size();
+        double x, y;
+        for( int i = 0; i < points_count; ++i ) {
+            const auto& p = coords[ i ];
+            if( mirror_on_y_axis ) {
+                x = -p.x;
+            } else {
+                x = p.x;
+            }
+            if( mirror_on_x_axis ) {
+                y = -p.y;
+            } else {
+                y = p.y;
+            }
+            coords->push_back( AVector::New( x, y ) );
+        }
+    }
+
+    static void MirrorCopyPathReverse( TPath* path, bool mirrorOnY, bool mirrorOnX ) {
+        int points_count = path->size();
+        float x, y;
+        for( int i = points_count - 1; i >= 0; --i ) {
+            const auto& p = path[ i ];
+            if( mirrorOnY ) {
+                x = -p.x;
+            } else {
+                x = p.x;
+            }
+            if( mirrorOnX ) {
+                y = -p.y;
+            } else {
+                y = p.y;
+            }
+
+            path->push_back( AVector::New( x, y ) );
+        }
+    }
+};
 }

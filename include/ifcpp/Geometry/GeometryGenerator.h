@@ -50,7 +50,8 @@ public:
             (float)ifcModel->getUnitConverter()->getAngleInRadiantFactor(),
             1e-6,
             14,
-            5
+            5,
+            10000,
         } );
         this->m_primitivesConverter = std::make_shared<PrimitivesConverter<TVector>>();
         this->m_curveConverter = std::make_shared<CurveConverter<TVector>>( this->m_primitivesConverter, this->m_parameters );

@@ -10,15 +10,8 @@ namespace ifcpp {
 template<CVector TVector>
 class VectorAdapter {
 public:
-    static TVector New() {
-        TVector v;
-        v.x = 0.0f;
-        v.y = 0.0f;
-        v.z = 0.0f;
-        return v;
-    }
 
-    static TVector New( float x, float y, float z ) {
+    static TVector New( float x = 0.0f, float y = 0.0f, float z = 0.0f ) {
         TVector v;
         v.x = x;
         v.y = y;

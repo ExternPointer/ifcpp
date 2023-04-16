@@ -22,6 +22,7 @@
 #include "ifcpp/Ifc/IfcReal.h"
 #include "ifcpp/Ifc/IfcVertex.h"
 #include "ifcpp/Ifc/IfcVertexPoint.h"
+#include "ifcpp/Ifc/IfcVector.h"
 
 
 namespace ifcpp {
@@ -33,6 +34,12 @@ class PrimitivesConverter {
     using AVector = VectorAdapter<TVector>;
 
 public:
+    TVector ConvertVector( const std::shared_ptr<IfcVector>& vector ) {
+        if( !vector->m_Orientation || !vector->m_Magnitude ) {
+            return AVector::New();
+        }
+        return this->ConvertPoint( vector->m_Orientation->m_DirectionRatios ) * (float)vector->m_Magnitude->m_value;
+    }
     TVector ConvertPoint( const std::vector<std::shared_ptr<IfcLengthMeasure>>& coords ) {
         if( coords.size() > 2 ) {
             return AVector::New( (float)coords[ 0 ]->m_value, (float)coords[ 1 ]->m_value, (float)coords[ 2 ]->m_value );

@@ -24,7 +24,6 @@ using namespace IFC4X3;
 
 template<CVector TVector>
 class GeometryConverter {
-    using TMatrix = Matrix<TVector>;
     using TLoop = std::vector<TVector>;
     using TEdge = std::vector<TVector>;
     using TFaceBounds = std::vector<TLoop>;
@@ -60,13 +59,12 @@ public:
             if( orientedEdge->m_Orientation && !orientedEdge->m_Orientation->m_value ) {
                 std::reverse( points.begin(), points.end() );
             }
-            return points;
+            return this->m_curveConverter->TrimCurve( points, start, end );
         }
 
         const auto subEdge = dynamic_pointer_cast<IfcSubedge>( edge );
         if( subEdge ) {
-            // TODO: Trim edge with start and end
-            return this->ConvertEdge( subEdge->m_ParentEdge );
+             return this->m_curveConverter->TrimCurve( this->ConvertEdge( subEdge->m_ParentEdge ), start, end );
         }
 
         const auto edgeCurve = dynamic_pointer_cast<IfcEdgeCurve>( edge );
@@ -75,8 +73,7 @@ public:
             if( edgeCurve->m_SameSense && !edgeCurve->m_SameSense->m_value ) {
                 std::reverse( std::begin( points ), std::end( points ) );
             }
-            // TODO: Trim edge with start and end
-            return points;
+            return this->m_curveConverter->TrimCurve( points, start, end );
         }
 
         return { start, end };
@@ -109,6 +106,8 @@ public:
             // Not implemented
             // TODO: Implement
         }
+        // TODO: Log error
+        return {};
     }
 
     TFaceBounds ConvertFace( const std::shared_ptr<IfcFace>& face ) {

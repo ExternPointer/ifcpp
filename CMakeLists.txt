@@ -62,6 +62,7 @@ set( HEADERS
         include/ifcpp/Geometry/CurveConverter.h
         include/ifcpp/Geometry/ProfileConverter.h
         include/ifcpp/Geometry/GeomUtils.h
+        include/ifcpp/Geometry/SolidConverter.h
         ${IFC_HEADERS} )
 
 

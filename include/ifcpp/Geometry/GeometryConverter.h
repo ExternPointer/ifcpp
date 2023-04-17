@@ -92,11 +92,7 @@ public:
             TLoop points;
             for( const auto& orientedEdge: edgeLoop->m_EdgeList ) {
                 const auto edgePoints = this->ConvertEdge( orientedEdge->m_EdgeElement );
-                if( orientedEdge->m_Orientation && !orientedEdge->m_Orientation->m_value ) {
-                    std::copy( edgePoints.rbegin(), edgePoints.rend(), std::back_inserter( points ) );
-                } else {
-                    std::copy( edgePoints.begin(), edgePoints.end(), std::back_inserter( points ) );
-                }
+                this->m_geomUtils->AppendToLoop( &points, edgePoints );
             }
             return this->m_geomUtils->SimplifyLoop( points );
         }
@@ -114,7 +110,7 @@ public:
         const auto& ifcBounds = face->m_Bounds;
         TFaceBounds bounds;
         for( const auto& bound: ifcBounds ) {
-            auto loop = ConvertLoop( bound->m_Bound );
+            auto loop = this->ConvertLoop( bound->m_Bound );
             if( bound->m_Orientation && !bound->m_Orientation->m_value ) {
                 std::reverse( loop.begin(), loop.end() );
             }

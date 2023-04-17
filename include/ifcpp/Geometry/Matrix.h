@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "ifcpp/Geometry/CAdapter.h"
 
@@ -85,6 +86,28 @@ public:
     [[nodiscard]] TVector GetTransformed( const TVector& v ) const {
         auto result = v;
         this->Transform( &result );
+        return result;
+    }
+    void TransformLoop( std::vector<TVector>* loop ) {
+        for( auto& p: loop ) {
+            this->Transform( &p );
+        }
+    }
+    [[nodiscard]] std::vector<TVector> GetTransformedLoop( const std::vector<TVector>& loop ) const {
+        auto result = loop;
+        this->TransformLoop( &result );
+        return result;
+    }
+    void TransformLoops( std::vector<std::vector<TVector>>* loops ) {
+        for( auto& l: loops ) {
+            this->TransformLoop( &l );
+        }
+    }
+    std::vector<std::vector<TVector>> GetTransformedLoops( const std::vector<std::vector<TVector>>& loops ) {
+        auto result = loops;
+        for( auto& l: result ) {
+            this->TransformLoop( &l );
+        }
         return result;
     }
     static void Multiply( Matrix<TVector>* m1, const Matrix<TVector>& m2 ) {

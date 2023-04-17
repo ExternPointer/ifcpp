@@ -35,7 +35,8 @@ class PrimitivesConverter {
 
 public:
     TVector ConvertVector( const std::shared_ptr<IfcVector>& vector ) {
-        if( !vector->m_Orientation || !vector->m_Magnitude ) {
+        if( !vector || !vector->m_Orientation || !vector->m_Magnitude ) {
+            // TODO: Log error
             return AVector::New();
         }
         return this->ConvertPoint( vector->m_Orientation->m_DirectionRatios ) * (float)vector->m_Magnitude->m_value;
@@ -46,6 +47,7 @@ public:
         } else if( coords.size() > 1 ) {
             return AVector::New( (float)coords[ 0 ]->m_value, (float)coords[ 1 ]->m_value, 0.0f );
         }
+        // TODO: Log error
         return AVector::New();
     }
     TVector ConvertPoint( const std::vector<std::shared_ptr<IfcReal>>& coords ) {
@@ -54,10 +56,12 @@ public:
         } else if( coords.size() > 1 ) {
             return AVector::New( (float)coords[ 0 ]->m_value, (float)coords[ 1 ]->m_value, 0.0f );
         }
+        // TODO: Log error
         return AVector::New();
     }
     TVector ConvertPoint( const std::shared_ptr<IfcCartesianPoint>& cartesianPoint ) {
         if( !cartesianPoint ) {
+            // TODO: Log error
             return AVector::New();
         }
         return ConvertPoint( cartesianPoint->m_Coordinates );

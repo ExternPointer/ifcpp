@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include "../third_party/earcut/include/mapbox/earcut.hpp"
 
 #include "csgjs.h"
 #include "ifcpp/Ifc/IfcObjectDefinition.h"
@@ -51,6 +52,37 @@ public:
                 matrix.Transform( &v );
             }
         }
+    }
+
+    std::vector<std::vector<TVector>> Triangulate(std::vector<TVector> loop) {
+        if( loop.size() < 3 ) {
+            // WTF, TODO: Log error
+            return {};
+        }
+        const auto normal = csgjscpp::unit( -csgjscpp::cross( loop[0] - loop[1], loop[2] - loop[1] ) );
+        auto right = csgjscpp::cross( { 0.0f, 0.0f, 1.0f }, normal );
+        if( csgjscpp::lengthsquared( right ) < csgjscpp::csgjs_EPSILON ) {
+            right = csgjscpp::cross( { 1.0f, 0.0f, 0.0f }, normal );
+        }
+        if( csgjscpp::lengthsquared( right ) < csgjscpp::csgjs_EPSILON ) {
+            // WTF, |normal| == 0 ?????
+            return {};
+        }
+        auto up = csgjscpp::cross( normal, right );
+        right = csgjscpp::unit( right );
+        up = csgjscpp::unit( up );
+        std::vector<std::vector<std::tuple<float, float>>> polygon;
+        std::vector<std::tuple<float, float>> outer;
+        for( const auto& p: loop ) {
+            outer.emplace_back( csgjscpp::dot( right, p ), csgjscpp::dot( up, p ) );
+        }
+        polygon.push_back( outer );
+        const auto indices = mapbox::earcut<int>(polygon);
+        std::vector<std::vector<TVector>> result;
+        for( int i = 0; i < indices.size() - 2; i += 3 ) {
+            result.push_back( {loop[i], loop[i+1], loop[i+2]} );
+        }
+        return result;
     }
     // inline TPolyline CreatePolyline( const std::vector<TVector>& vertices, const TMaterial& material ) {
     //     return { vertices, material };

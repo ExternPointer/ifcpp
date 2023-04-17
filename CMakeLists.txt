@@ -48,6 +48,7 @@ set( HEADERS
         include/ifcpp/Geometry/GeomUtils.h
         include/ifcpp/Geometry/SolidConverter.h
         include/ifcpp/Geometry/SplineConverter.h
+        include/ifcpp/Geometry/Extruder.h
         ${IFC_HEADERS} )
 
 

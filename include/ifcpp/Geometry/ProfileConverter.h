@@ -8,7 +8,7 @@
 #include "ifcpp/Geometry/Matrix.h"
 #include "ifcpp/Geometry/Parameters.h"
 #include "ifcpp/Geometry/PrimitivesConverter.h"
-#include "ifcpp/Geometry/Vector.h"
+#include "ifcpp/Geometry/VectorAdapter.h"
 
 #include "ifcpp/Ifc/IfcArbitraryClosedProfileDef.h"
 #include "ifcpp/Ifc/IfcArbitraryOpenProfileDef.h"

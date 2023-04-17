@@ -6,7 +6,7 @@
 #include "ifcpp/Geometry/CAdapter.h"
 #include "ifcpp/Geometry/Matrix.h"
 #include "ifcpp/Geometry/Parameters.h"
-#include "ifcpp/Geometry/Vector.h"
+#include "ifcpp/Geometry/VectorAdapter.h"
 
 
 namespace ifcpp {

@@ -5,7 +5,7 @@
 #include "ifcpp/Geometry/GeomUtils.h"
 #include "ifcpp/Geometry/Parameters.h"
 #include "ifcpp/Geometry/PrimitivesConverter.h"
-#include "ifcpp/Geometry/Vector.h"
+#include "ifcpp/Geometry/VectorAdapter.h"
 
 #include "ifcpp/Ifc/IfcBSplineCurve.h"
 #include "ifcpp/Ifc/IfcBSplineCurveWithKnots.h"

@@ -2,7 +2,7 @@
 
 #include "ifcpp/Geometry/CAdapter.h"
 #include "ifcpp/Geometry/Matrix.h"
-#include "ifcpp/Geometry/Vector.h"
+#include "ifcpp/Geometry/VectorAdapter.h"
 
 #include "ifcpp/Ifc/IfcAxis1Placement.h"
 #include "ifcpp/Ifc/IfcAxis2Placement2D.h"

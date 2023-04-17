@@ -11,15 +11,7 @@ file( GLOB_RECURSE CARVE third_party/carve *.* )
 file( GLOB_RECURSE EARCUT third_party/earcut *.* )
 
 set( SOURCES
-        src/Geometry/Common.cpp
         src/Geometry/csgjs.cpp
-        src/Geometry/Curve.cpp
-        src/Geometry/Extruder.cpp
-        src/Geometry/Geometry.cpp
-        src/Geometry/Profile.cpp
-        src/Geometry/Solid.cpp
-        src/Geometry/Style.cpp
-        src/Geometry/Utils.cpp
         src/Model/AttributeObject.cpp
         src/Model/BuildingGuid.cpp
         src/Model/BuildingModel.cpp
@@ -31,16 +23,8 @@ set( SOURCES
         ${IFC_SOURCES} )
 
 set( HEADERS
-        include/ifcpp/Geometry/Common.h
         include/ifcpp/Geometry/csgjs.h
-        include/ifcpp/Geometry/Curve.h
-        include/ifcpp/Geometry/Extruder.h
-        include/ifcpp/Geometry/Geometry.h
         include/ifcpp/Geometry/Matrix.h
-        include/ifcpp/Geometry/Profile.h
-        include/ifcpp/Geometry/Solid.h
-        include/ifcpp/Geometry/Style.h
-        include/ifcpp/Geometry/Utils.h
         include/ifcpp/Model/AttributeObject.h
         include/ifcpp/Model/BasicTypes.h
         include/ifcpp/Model/BuildingException.h
@@ -57,7 +41,7 @@ set( HEADERS
         include/ifcpp/Geometry/Adapter.h
         include/ifcpp/Geometry/GeometryConverter.h
         include/ifcpp/Geometry/PrimitivesConverter.h
-        include/ifcpp/Geometry/Vector.h
+        include/ifcpp/Geometry/VectorAdapter.h
         include/ifcpp/Geometry/Parameters.h
         include/ifcpp/Geometry/CurveConverter.h
         include/ifcpp/Geometry/ProfileConverter.h

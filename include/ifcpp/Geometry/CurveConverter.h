@@ -5,8 +5,8 @@
 #include "ifcpp/Geometry/Matrix.h"
 #include "ifcpp/Geometry/Parameters.h"
 #include "ifcpp/Geometry/PrimitivesConverter.h"
-#include "ifcpp/Geometry/Vector.h"
 #include "ifcpp/Geometry/SplineConverter.h"
+#include "ifcpp/Geometry/VectorAdapter.h"
 
 #include "ifcpp/Ifc/IfcArcIndex.h"
 #include "ifcpp/Ifc/IfcBSplineCurve.h"

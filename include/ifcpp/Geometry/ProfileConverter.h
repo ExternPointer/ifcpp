@@ -120,7 +120,7 @@ private:
             if( centerLineProfileDef->m_Thickness ) {
                 thickness = (float)centerLineProfileDef->m_Thickness->m_value;
             }
-            const auto curve = this->m_geomUtils->SimplifyLoop( this->m_curveConverter->ConvertCurve( centerLineProfileDef->m_Curve ) );
+            const auto curve = this->m_geomUtils->SimplifyCurve( this->m_curveConverter->ConvertCurve( centerLineProfileDef->m_Curve ) );
             if( curve.size() <= 1 ) {
                 return {};
             }
@@ -141,8 +141,7 @@ private:
             std::back_inserter( std::rbegin( right ), std::rend( right ), result );
             return this->m_geomUtils->SimplifyLoop( result );
         }
-        // TODO: Log error
-        return {};
+        return this->m_geomUtils->SimplifyCurve( this->m_curveConverter->ConvertCurve( profile->m_Curve ) );
     }
 
     TPath ConvertCompositeProfileDef( const shared_ptr<IfcCompositeProfileDef>& profile ) {

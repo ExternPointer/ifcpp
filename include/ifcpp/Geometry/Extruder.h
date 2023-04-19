@@ -7,6 +7,7 @@
 #include <ifcpp/Geometry/Matrix.h>
 #include <ifcpp/Geometry/Parameters.h>
 #include <ifcpp/Geometry/VectorAdapter.h>
+#include <ifcpp/Geometry/GeomUtils.h>
 
 namespace ifcpp {
 
@@ -16,14 +17,23 @@ class Extruder {
     using AVector = VectorAdapter<TVector>;
     using TMatrix = Matrix<TVector>;
 
+    std::shared_ptr<GeomUtils<TVector>> m_geomUtils;
     std::shared_ptr<Parameters> m_parameters;
 
 public:
-    explicit Extruder( const std::shared_ptr<Parameters>& parameters )
-        : m_parameters( parameters ) {
+    Extruder( const std::shared_ptr<GeomUtils<TVector>>& geomUtils, const std::shared_ptr<Parameters>& parameters )
+        : m_geomUtils( geomUtils )
+        , m_parameters( parameters ) {
     }
 
-    std::vector<TLoop> Extrude( const TLoop& profile, const TVector& extrusion ) {
+    std::vector<TLoop> Extrude( TLoop profile, const TVector& extrusion, bool asClosed = true ) {
+        // TODO: It is not important to simplify profile here
+        if( asClosed ) {
+            profile = this->m_geomUtils->SimplifyLoop( profile );
+            profile.push_back( profile[ 0 ] );
+        } else {
+            profile = this->m_geomUtils->SimplifyCurve( profile );
+        }
         std::vector<TLoop> result;
 
         TLoop back = profile;
@@ -35,13 +45,22 @@ public:
         const auto connection = this->ConnectLoops( back, front );
         std::back_inserter( std::begin( connection ), std::end( connection ), result );
 
-        std::reverse( std::begin( back ), std::end( back ) );
-        result.push_back( back );
-        result.push_back( front );
+        if( asClosed ) {
+            std::reverse( std::begin( back ), std::end( back ) );
+            result.push_back( back );
+            result.push_back( front );
+        }
 
         return result;
     }
-    std::vector<TLoop> Sweep( const TLoop& profile, const std::vector<TVector>& sweepPoints ) {
+    std::vector<TLoop> Sweep( TLoop profile, const std::vector<TVector>& sweepPoints, bool asClosed = true ) {
+        // TODO: It is not important to simplify profile here
+        if( asClosed ) {
+            profile = this->m_geomUtils->SimplifyLoop( profile );
+            profile.push_back( profile[ 0 ] );
+        } else {
+            profile = this->m_geomUtils->SimplifyCurve( profile );
+        }
         if( sweepPoints.size() <= 1 ) {
             return {};
         }
@@ -80,9 +99,22 @@ public:
         result.push_back( UnProjectLoop( profile, sweepPoints[ sweepPoints.size() - 1 ], rDirs[ sweepPoints.size() - 1 ], uDirs[ sweepPoints.size() - 1 ] ) );
         std::reverse( std::begin( result[ 0 ] ), std::end( result[ 0 ] ) );
 
+        if( !asClosed ) {
+            result.pop_back();
+            result.erase( std::begin( result ) );
+        }
+
         return result;
     }
-    std::vector<TLoop> Revolve( TLoop profile, const TVector& axisLocation, const TVector& axisDirection, float revolveAngle ) {
+    std::vector<TLoop> Revolve( TLoop profile, const TVector& axisLocation, const TVector& axisDirection, float revolveAngle, bool asClosed = true ) {
+        // TODO: It is not important to simplify profile here
+        if( asClosed ) {
+            profile = this->m_geomUtils->SimplifyLoop( profile );
+            profile.push_back( profile[ 0 ] );
+        } else {
+            profile = this->m_geomUtils->SimplifyCurve( profile );
+        }
+
         std::vector<TLoop> result;
         for( auto& p: profile ) {
             p = p - axisLocation;
@@ -102,6 +134,11 @@ public:
             }
         }
         std::reverse( std::begin( result[ 0 ] ), std::end( result[ 0 ] ) );
+
+        if( !asClosed ) {
+            result.pop_back();
+            result.erase( std::begin( result ) );
+        }
 
         for( const auto& l: result ) {
             for( auto& p: l ) {

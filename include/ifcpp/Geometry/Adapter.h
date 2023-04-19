@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector>
 #include "../third_party/earcut/include/mapbox/earcut.hpp"
+#include <vector>
 
 #include "csgjs.h"
 #include "ifcpp/Ifc/IfcObjectDefinition.h"
@@ -35,6 +35,10 @@ public:
     using TVector = csgjscpp::Vector;
     using TMaterial = Material;
 
+    inline TPolyline CreatePolyline( const std::vector<TVector>& vertices ) {
+        return { vertices };
+    }
+
     inline TEntity CreateEntity( const std::shared_ptr<IFC4X3::IfcObjectDefinition>& ifcObject, const std::vector<TPolygon>& meshes,
                                  const std::vector<TPolyline>& polylines ) {
         return { ifcObject, meshes, polylines };
@@ -54,12 +58,21 @@ public:
         }
     }
 
-    std::vector<std::vector<TVector>> Triangulate(std::vector<TVector> loop) {
+    inline TPolygon CreatePolygon( std::vector<TVector> vertices, std::vector<int> indices ) {
+        if( indices.size() != 3 ) {
+            // TODO: Log error
+            // WTF???
+            return {};
+        }
+        return csgjscpp::Polygon( { { vertices[ indices[ 0 ] ] }, { vertices[ indices[ 1 ] ] }, { vertices[ indices[ 2 ] ] } } )
+    }
+
+    inline std::vector<int> Triangulate( std::vector<TVector> loop ) {
         if( loop.size() < 3 ) {
             // WTF, TODO: Log error
             return {};
         }
-        const auto normal = csgjscpp::unit( -csgjscpp::cross( loop[0] - loop[1], loop[2] - loop[1] ) );
+        const auto normal = csgjscpp::unit( -csgjscpp::cross( loop[ 0 ] - loop[ 1 ], loop[ 2 ] - loop[ 1 ] ) );
         auto right = csgjscpp::cross( { 0.0f, 0.0f, 1.0f }, normal );
         if( csgjscpp::lengthsquared( right ) < csgjscpp::csgjs_EPSILON ) {
             right = csgjscpp::cross( { 1.0f, 0.0f, 0.0f }, normal );
@@ -77,13 +90,21 @@ public:
             outer.emplace_back( csgjscpp::dot( right, p ), csgjscpp::dot( up, p ) );
         }
         polygon.push_back( outer );
-        const auto indices = mapbox::earcut<int>(polygon);
-        std::vector<std::vector<TVector>> result;
-        for( int i = 0; i < indices.size() - 2; i += 3 ) {
-            result.push_back( {loop[i], loop[i+1], loop[i+2]} );
-        }
-        return result;
+        return mapbox::earcut<int>( polygon );
     }
+
+    inline std::vector<TPolygon> ComputeUnion( const std::vector<TPolygon>& operand1, const std::vector<TPolygon>& operand2 ) {
+        return csgjscpp::csgunion( operand1, operand2 );
+    }
+
+    inline std::vector<TPolygon> ComputeIntersection( const std::vector<TPolygon>& operand1, const std::vector<TPolygon>& operand2 ) {
+        return csgjscpp::csgintersection( operand1, operand2 );
+    }
+
+    inline std::vector<TPolygon> ComputeDifference( const std::vector<TPolygon>& operand1, const std::vector<TPolygon>& operand2 ) {
+        return csgjscpp::csgsubtract( operand1, operand2 );
+    }
+
     // inline TPolyline CreatePolyline( const std::vector<TVector>& vertices, const TMaterial& material ) {
     //     return { vertices, material };
     // }

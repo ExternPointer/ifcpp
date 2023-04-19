@@ -4,21 +4,27 @@
 #include <vector>
 
 #include "ifcpp/Geometry/CAdapter.h"
+#include "ifcpp/Geometry/CurveConverter.h"
 #include "ifcpp/Geometry/GeometryConverter.h"
 #include "ifcpp/Geometry/Matrix.h"
 #include "ifcpp/Geometry/Parameters.h"
 #include "ifcpp/Geometry/PrimitivesConverter.h"
-#include "ifcpp/Geometry/CurveConverter.h"
+#include "ifcpp/Geometry/SolidConverter.h"
+
 #include "ifcpp/Model/BuildingModel.h"
 #include "ifcpp/Model/UnitConverter.h"
 
+#include "ifcpp/Ifc/IfcBooleanResult.h"
 #include "ifcpp/Ifc/IfcConnectedFaceSet.h"
 #include "ifcpp/Ifc/IfcFace.h"
 #include "ifcpp/Ifc/IfcFaceBasedSurfaceModel.h"
 #include "ifcpp/Ifc/IfcFeatureElementSubtraction.h"
 #include "ifcpp/Ifc/IfcObjectDefinition.h"
+#include "ifcpp/Ifc/IfcOpenShell.h"
 #include "ifcpp/Ifc/IfcProductRepresentation.h"
+#include "ifcpp/Ifc/IfcRelVoidsElement.h"
 #include "ifcpp/Ifc/IfcRepresentation.h"
+#include "ifcpp/Ifc/IfcShellBasedSurfaceModel.h"
 #include "ifcpp/Ifc/IfcSpace.h"
 
 
@@ -39,6 +45,7 @@ class GeometryGenerator {
     std::shared_ptr<PrimitivesConverter<TVector>> m_primitivesConverter;
     std::shared_ptr<GeometryConverter<TVector>> m_geometryConverter;
     std::shared_ptr<GeometryConverter<TVector>> m_curveConverter;
+    std::shared_ptr<SolidConverter<TAdapter>> m_solidConverter;
     std::shared_ptr<Parameters> m_parameters;
 
 public:
@@ -57,6 +64,9 @@ public:
         this->m_primitivesConverter = std::make_shared<PrimitivesConverter<TVector>>();
         this->m_curveConverter = std::make_shared<CurveConverter<TVector>>( this->m_primitivesConverter, this->m_parameters );
         this->m_geometryConverter = std::make_shared<GeometryConverter<TVector>>( this->m_curveConverter, this->m_primitivesConverter, this->m_parameters );
+        this->m_solidConverter =
+            std::make_shared<SolidConverter<TAdapter>>( this->m_primitivesConverter, this->m_curveConverter, this->m_profileConverter, this->m_extruder,
+                                                        this->m_geometryConverter, this->m_adapter, this->m_geomUtils, this->m_parameters );
     }
 
     std::vector<TEntity> GenerateGeometry() {
@@ -112,6 +122,18 @@ private:
         this->m_adapter.Transform( &resultPolygons, matrix );
         this->m_adapter.Tranform( &resultPolylines, matrix );
 
+        // Subtract openings
+        if( const auto element = std::dynamic_pointer_cast<IfcElement>( object ) ) {
+            for( const auto& openingRef: element->m_HasOpenings_inverse ) {
+                const auto openingRel = openingRef.lock();
+                if( openingRel ) {
+                    const auto opening = openingRel->m_RelatedOpeningElement;
+                    auto [ voidPolygons, voidPolylines ] = ConvertGeometryRepresentation( opening );
+                    resultPolygons = this->m_adapter->ComputeDifference( resultPolygons, voidPolygons );
+                }
+            }
+        }
+
         return this->m_adapter->CreateEntity( object, resultPolygons, resultPolylines );
     }
 
@@ -127,21 +149,17 @@ private:
 
         const auto surfaceModel = dynamic_pointer_cast<IfcFaceBasedSurfaceModel>( geometricRepresentation );
         if( surfaceModel ) {
-            std::vector<std::shared_ptr<IfcFace>> faces;
-            for( const auto& face_set: surfaceModel->m_FbsmFaces ) {
-                std::copy( face_set->m_CfsFaces.begin(), face_set->m_CfsFaces.end(), std::back_inserter( faces ) );
-            }
-            return this->m_geometryConverter->ConvertFaces( faces );
+            return this->ConvertSurfaceModel( surfaceModel );
         }
 
         const auto booleanResult = dynamic_pointer_cast<IfcBooleanResult>( geometricRepresentation );
         if( booleanResult ) {
-            return this->ConvertBooleanResult( booleanResult );
+            return { this->m_solidConverter->ConvertBooleanResult( booleanResult ), {} };
         }
 
         const auto solidModel = dynamic_pointer_cast<IfcSolidModel>( geometricRepresentation );
         if( solidModel ) {
-            return this->ConvertSolidModel( solidModel );
+            return { this->m_solidConverter->ConvertSolidModel( solidModel ), {} };
         }
 
         const auto curve = dynamic_pointer_cast<IfcCurve>( geometricRepresentation );
@@ -158,6 +176,49 @@ private:
         if( surface ) {
             return this->ConvertSurface( surface );
         }
+    }
+
+    std::tuple<std::vector<TPolygon>, std::vector<TPolyline>> ConvertSurfaceModel( const std::shared_ptr<IfcFaceBasedSurfaceModel>& surfaceModel ) {
+        std::vector<std::shared_ptr<IfcFace>> faces;
+        for( const auto& face_set: surfaceModel->m_FbsmFaces ) {
+            std::copy( face_set->m_CfsFaces.begin(), face_set->m_CfsFaces.end(), std::back_inserter( faces ) );
+        }
+        std::vector<std::vector<TVector>> loops = this->m_geometryConverter->ConvertFaces( faces );
+        return { this->CreatePolygons( loops ), {} };
+    }
+
+    std::tuple<std::vector<TPolygon>, std::vector<TPolyline>>
+    ConvertShellBasedSurfaceModel( const std::shared_ptr<IfcShellBasedSurfaceModel>& shell_based_surface_model ) {
+        std::vector<std::shared_ptr<IfcFace>> faces;
+        for( const auto& shell_select: shell_based_surface_model->m_SbsmBoundary ) {
+            // TYPE IfcShell = SELECT	(IfcClosedShell	,IfcOpenShell)
+            shared_ptr<IfcClosedShell> closed_shell = dynamic_pointer_cast<IfcClosedShell>( shell_select );
+            if( closed_shell ) {
+                std::copy( closed_shell->m_CfsFaces.begin(), closed_shell->m_CfsFaces.end(), std::back_inserter( faces ) );
+            }
+            shared_ptr<IfcOpenShell> open_shell = dynamic_pointer_cast<IfcOpenShell>( shell_select );
+            if( open_shell ) {
+                std::copy( open_shell->m_CfsFaces.begin(), open_shell->m_CfsFaces.end(), std::back_inserter( faces ) );
+            }
+        }
+        std::vector<std::vector<TVector>> loops = this->m_geometryConverter->ConvertFaces( faces );
+        return { this->CreatePolygons( loops ), {} };
+    }
+
+    std::tuple<std::vector<TPolygon>, std::vector<TPolyline>> ConvertSurface( const std::shared_ptr<IfcSurface>& surface ) {
+        const auto loops = this->m_geometryConverter->ConvertSurface( surface );
+        return { this->CreatePolygons( loops ), {} };
+    }
+
+    std::vector<TPolygon> CreatePolygons( std::vector<std::vector<TVector>> loops ) {
+        std::vector<TPolygon> result;
+        for( const auto& l: loops ) {
+            const auto indices = this->m_adapter->Triangulate( l );
+            for( int i = 0; i < indices.size() - 2; i++ ) {
+                result.push_back( this->m_adapter->CreatePolygon( l, { i, i + 1, i + 2 } ) );
+            }
+        }
+        return result;
     }
 };
 

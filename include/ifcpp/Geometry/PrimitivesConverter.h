@@ -66,6 +66,13 @@ public:
         }
         return ConvertPoint( cartesianPoint->m_Coordinates );
     }
+    TVector ConvertPoint( const std::shared_ptr<IfcPoint>& point ) {
+        if( const auto cartesianPoint = std::dynamic_pointer_cast<IfcCartesianPoint>( point ) ) {
+            return ConvertPoint( cartesianPoint->m_Coordinates );
+        }
+        // TODO: Log error
+        return AVector::New();
+    }
     std::vector<TVector> ConvertPoints( const std::vector<std::shared_ptr<IfcCartesianPoint>>& points ) {
         std::vector<TVector> result;
         for( const auto& point: points ) {
@@ -136,15 +143,15 @@ public:
         auto ref_direction = AVector::New( 1.0f, 0.0f, 0.0f );
 
         if( !onlyRotation ) {
-            translate = ConvertPoint( placement->m_Location );
+            translate = this->ConvertPoint( placement->m_Location );
         }
 
         if( placement->m_Axis ) {
-            local_z = ConvertPoint( placement->m_Axis->m_DirectionRatios );
+            local_z = this->ConvertPoint( placement->m_Axis->m_DirectionRatios );
         }
 
         if( placement->m_RefDirection ) {
-            ref_direction = ConvertPoint( placement->m_RefDirection->m_DirectionRatios );
+            ref_direction = this->ConvertPoint( placement->m_RefDirection->m_DirectionRatios );
         }
 
         local_x = ref_direction;
@@ -193,6 +200,22 @@ public:
         return result;
     }
     TMatrix ConvertPlacement( const std::shared_ptr<IfcPlacement>& placement, bool onlyRotation = false ) {
+        if( !placement ) {
+            return TMatrix::GetIdentity();
+        }
+        if( dynamic_pointer_cast<IfcAxis1Placement>( placement ) ) {
+            // TODO: Implement
+            // NOT IMPLEMENTED
+            return TMatrix::GetIdentity();
+        } else if( auto placement2d = dynamic_pointer_cast<IfcAxis2Placement2D>( placement ) ) {
+            return ConvertPlacement( placement2d, onlyRotation );
+        } else if( auto placement3d = dynamic_pointer_cast<IfcAxis2Placement3D>( placement ) ) {
+            return ConvertPlacement( placement3d, onlyRotation );
+        }
+        // TODO: Log error
+        return TMatrix::GetIdentity();
+    }
+    TMatrix ConvertPlacement( const std::shared_ptr<IfcAxis2Placement>& placement, bool onlyRotation = false ) {
         if( !placement ) {
             return TMatrix::GetIdentity();
         }
@@ -259,7 +282,7 @@ public:
             // ENTITY IfcCartesianTransformationOperator3D SUPERTYPE OF(IfcCartesianTransformationOperator3DnonUniform)
             shared_ptr<IfcCartesianTransformationOperator3D> trans_operator_3d =
                 dynamic_pointer_cast<IfcCartesianTransformationOperator3D>( transformationOperator );
-            if( !trans_operator_3d && !trans_operator_3d->m_LocalOrigin || trans_operator_3d->m_LocalOrigin->m_Coordinates.size() < 3 ) {
+            if( !trans_operator_3d || !trans_operator_3d->m_LocalOrigin || trans_operator_3d->m_LocalOrigin->m_Coordinates.size() < 3 ) {
                 // TODO: Log error
                 return TMatrix::GetIdentity();
             }
@@ -280,7 +303,7 @@ public:
                 const auto& axis3 = trans_operator_3d->m_Axis3;
                 if( axis1->m_DirectionRatios.size() < 2 || axis2->m_DirectionRatios.size() < 2 || axis3->m_DirectionRatios.size() < 2 ) {
                     // TODO: Log error
-                    return;
+                    return {};
                 }
                 local_x.x = axis1->m_DirectionRatios[ 0 ]->m_value;
                 local_x.y = axis1->m_DirectionRatios[ 1 ]->m_value;
@@ -306,11 +329,11 @@ public:
                 }
             }
         }
-        local_x.normalize();
-        local_y.normalize();
-        local_z.normalize();
+        AVector::Normalize( &local_x );
+        AVector::Normalize( &local_y );
+        AVector::Normalize( &local_z );
 
-        return TMatrix::Multiply( TMatrix::CreateFromAxises( local_x, local_y, local_z, translate ), TMatrix::GetScale( scale, scale_y, scale_z ) );
+        return TMatrix::GetMultiplied( TMatrix::CreateFromAxises( local_x, local_y, local_z, translate ), TMatrix::GetScale( scale, scale_y, scale_z ) );
     }
 };
 

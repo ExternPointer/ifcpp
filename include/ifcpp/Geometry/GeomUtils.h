@@ -138,7 +138,7 @@ public:
         if( result.size() > 2 && AVector::IsNearlyEqual( result[ 0 ], result[ result.size() - 1 ] ) ) {
             result.pop_back();
         }
-        if( result.size <= 1 ) {
+        if( result.size() < 3 ) {
             return result;
         }
         result.push_back( result[ 0 ] );
@@ -147,7 +147,7 @@ public:
             const auto a = result[ i - 1 ] - result[ i ];
             const auto b = result[ i + 1 ] - result[ i ];
             const auto c = AVector::Cross( a, b );
-            if( AVector::Len2( c.z ) < this->m_parameters->m_epsilon ) {
+            if( AVector::Len2( c ) < this->m_parameters->m_epsilon ) {
                 result.erase( std::begin( result ) + i );
                 i--;
             }
@@ -157,36 +157,43 @@ public:
         return result;
     }
     std::vector<TVector> SimplifyCurve( const std::vector<TVector>& loop ) {
-      std::vector<TVector> result;
-      result.reserve( loop.size() );
-      if( loop.empty() ) {
-        return result;
-      }
-      result.push_back( loop[ 0 ] );
-      for( const auto& point: loop ) {
-        if( !AVector::IsNearlyEqual( point, result[ result.size() - 1 ] ) ) {
-          result.push_back( point );
+        std::vector<TVector> result;
+        result.reserve( loop.size() );
+        if( loop.empty() ) {
+            return result;
         }
-      }
-      if( result.size <= 1 ) {
-        return result;
-      }
-      for( int i = 1; i < result.size() - 1; i++ ) {
-        const auto a = result[ i - 1 ] - result[ i ];
-        const auto b = result[ i + 1 ] - result[ i ];
-        const auto c = AVector::Cross( a, b );
-        if( AVector::Len2( c.z ) < this->m_parameters->m_epsilon ) {
-          result.erase( std::begin( result ) + i );
-          i--;
+        result.push_back( loop[ 0 ] );
+        for( const auto& point: loop ) {
+            if( !AVector::IsNearlyEqual( point, result[ result.size() - 1 ] ) ) {
+                result.push_back( point );
+            }
         }
-      }
-      return result;
+        if( result.size() < 3 ) {
+            return result;
+        }
+        for( int i = 1; i < result.size() - 1; i++ ) {
+            const auto a = result[ i - 1 ] - result[ i ];
+            const auto b = result[ i + 1 ] - result[ i ];
+            const auto c = AVector::Cross( a, b );
+            if( AVector::Len2( c ) < this->m_parameters->m_epsilon ) {
+                result.erase( std::begin( result ) + i );
+                i--;
+            }
+        }
+        return result;
     }
     void AppendToLoop( std::vector<TVector>* loop, const std::vector<TVector>& toAppend ) {
         // TODO: Check order, remove duplicates, etc...
-        std::back_inserter( std::begin( toAppend ), std::end( toAppend ), *loop );
+        std::copy( std::begin( toAppend ), std::end( toAppend ), std::back_inserter( *loop ) );
     }
     std::vector<TVector> CombineLoops( std::vector<std::vector<TVector>> loops ) {
+        while( !loops.empty() && loops[ 0 ].empty() ) {
+            loops.erase( std::begin( loops ) );
+        }
+        if( loops.empty() ) {
+            return {};
+        }
+
         std::vector<TVector> result = loops[ 0 ];
         loops.erase( std::begin( loops ) );
 
@@ -242,14 +249,15 @@ public:
             }
 
             std::vector<TVector> loopToInsert( std::begin( loops[ loopIdx ] ) + pointIdx, std::end( loops[ loopIdx ] ) );
-            std::back_inserter( std::begin( loops[ loopIdx ] ), std::begin( loops[ loopIdx ] ) + pointIdx, loopToInsert );
+            std::copy( std::begin( loops[ loopIdx ] ), std::begin( loops[ loopIdx ] ) + pointIdx, std::back_inserter( loopToInsert ) );
             loops.erase( std::begin( loops ) + loopIdx );
             result.insert( std::begin( result ) + inResultIdx, result[ inResultIdx ] );
-            result.insert( std::begin( result ) + inResultIdx + 1, loopToInsert );
+            result.insert( std::begin( result ) + inResultIdx + 1, std::begin( loopToInsert ), std::end( loopToInsert ) );
         }
         return this->SimplifyLoop( result );
     }
-    std::vector<TVector> BuildEllipse( float radius1, float radius2, float startAngle, float openingAngle, int verticesCount, TVector center ) const {
+    std::vector<TVector> BuildEllipse( float radius1, float radius2, float startAngle, float openingAngle, int verticesCount,
+                                       TVector center = AVector::New() ) const {
         std::vector<TVector> points;
         float angle = startAngle;
         float delta = openingAngle / (float)( verticesCount - 1 );
@@ -266,7 +274,7 @@ public:
         return this->BuildEllipse( radius, radius, startAngle, openingAngle, verticesCount, center );
     }
     std::vector<TVector> BuildCircle( float radius, float startAngle, float openingAngle, int verticesCount, float x, float y ) const {
-        return this->BuildCircle( radius, radius, startAngle, openingAngle, verticesCount, AVector::New( x, y ) );
+        return this->BuildCircle( radius, startAngle, openingAngle, verticesCount, AVector::New( x, y ) );
     }
     // p0, p1, p2 - points on arc
     std::vector<TVector> BuildArc( TVector p0, TVector p1, TVector p2 ) const {
@@ -294,8 +302,8 @@ public:
             const auto center_p2_normalized = AVector::Normalized( center_p2 );
 
             const float openingAngle = std::acos( AVector::Dot( center_p0_normalized, center_p2_normalized ) );
-            int n = (int)( this->m_parameters->m_NumVerticesPerCircle * openingAngle / ( M_PI * 2.0f ) );
-            n = std::max( n, this->m_parameters->minNumVerticesPerArc );
+            int n = (int)( this->m_parameters->m_numVerticesPerCircle * openingAngle / ( M_PI * 2.0f ) );
+            n = std::max( n, this->m_parameters->m_minNumVerticesPerArc );
 
             const float deltaAngle = openingAngle / (float)( n - 1 );
             double angle = 0;
@@ -308,6 +316,18 @@ public:
             }
         }
         return result;
+    }
+
+    TVector ComputePlaneNormal( std::vector<TVector> pointsOnPlane ) {
+        // FIXME
+        if( pointsOnPlane.size() < 3 ) {
+            // TODO: Log error
+        }
+        TVector result = AVector::New();
+        for( int i = 1; i < pointsOnPlane.size() - 1; i++ ) {
+            result = result - AVector::Cross( pointsOnPlane[ i - 1 ] - pointsOnPlane[ i ], pointsOnPlane[ i + 1 ] - pointsOnPlane[ i ] );
+        }
+        return AVector::Normalized( result );
     }
 };
 

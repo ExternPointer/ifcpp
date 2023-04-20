@@ -40,6 +40,7 @@ class GeometryConverter {
     using TLoop = std::vector<TVector>;
     using TEdge = std::vector<TVector>;
     using AVector = VectorAdapter<TVector>;
+    using TMatrix = Matrix<TVector>;
 
     std::shared_ptr<PrimitivesConverter<TVector>> m_primitivesConverter;
     std::shared_ptr<CurveConverter<TVector>> m_curveConverter;
@@ -71,8 +72,8 @@ public:
             return {};
         }
 
-        const auto start = this->m_primitivesConverter->ConvertPoint( edge->m_EdgeStart );
-        const auto end = this->m_primitivesConverter->ConvertPoint( edge->m_EdgeEnd );
+        const auto start = this->m_primitivesConverter->ConvertVertex( edge->m_EdgeStart );
+        const auto end = this->m_primitivesConverter->ConvertVertex( edge->m_EdgeEnd );
 
         const auto orientedEdge = dynamic_pointer_cast<IfcOrientedEdge>( edge );
         if( orientedEdge ) {
@@ -90,7 +91,7 @@ public:
 
         const auto edgeCurve = dynamic_pointer_cast<IfcEdgeCurve>( edge );
         if( edgeCurve ) {
-            const auto points = this->m_curveConverter->ConvertCurve( edgeCurve->m_EdgeGeometry );
+            auto points = this->m_curveConverter->ConvertCurve( edgeCurve->m_EdgeGeometry );
             if( edgeCurve->m_SameSense && !edgeCurve->m_SameSense->m_value ) {
                 std::reverse( std::begin( points ), std::end( points ) );
             }
@@ -151,7 +152,7 @@ public:
                 }
             }
         }
-        const auto inner = this->m_geomUtils->CombineLoops( inners );
+        auto inner = this->m_geomUtils->CombineLoops( inners );
         std::reverse( std::begin( inner ), std::end( inner ) );
         return this->m_geomUtils->CombineLoops( { outer, inner } );
     }
@@ -184,10 +185,10 @@ public:
                     inners.push_back( this->m_geomUtils->SimplifyLoop( this->m_curveConverter->ConvertCurve( inner ) ) );
                 }
 
-                const auto inner = this->m_geomUtils->CombineLoops( inners );
+                auto inner = this->m_geomUtils->CombineLoops( inners );
                 std::reverse( std::begin( inner ), std::end( inner ) );
-                const auto result = this->m_geomUtils->CombineLoops( { outer, inner } );
-                curve_bounded_plane_matrix.TransformLoops( &result );
+                auto result = this->m_geomUtils->CombineLoops( { outer, inner } );
+                curve_bounded_plane_matrix.TransformLoop( &result );
                 return { result };
             } else if( const auto curve_bounded_surface = dynamic_pointer_cast<IfcCurveBoundedSurface>( bounded_surface ) ) {
                 // TODO: Implement
@@ -215,19 +216,19 @@ public:
                     AVector::New( -this->m_parameters->m_modelMaxSize, this->m_parameters->m_modelMaxSize ),
                 };
                 planeMatrix.TransformLoop( &result );
-                return result;
+                return { result };
             }
 
             shared_ptr<IfcCylindricalSurface> cylindrical_surface = dynamic_pointer_cast<IfcCylindricalSurface>( elementary_surface );
             if( cylindrical_surface ) {
                 auto radius = (float)cylindrical_surface->m_Radius->m_value;
                 int nvc = this->m_parameters->m_numVerticesPerCircle; // TODO: Use radius
-                const auto circle = this->m_geomUtils->BuildCircle( radius, 0, (float)M_PI * 2.0f, nvc );
+                auto circle = this->m_geomUtils->BuildCircle( radius, 0, (float)M_PI * 2.0f, nvc );
                 for( auto& p: circle ) {
                     p.z = -this->m_parameters->m_modelMaxSize;
                 }
-                const auto result = this->m_extruder->Extrude( circle, AVector::New( 0, 0, 2.0f * this->m_modelMaxSize ), false );
-                planeMatrix.TranfromLoops( &result );
+                auto result = this->m_extruder->Extrude( circle, AVector::New( 0, 0, 2.0f * this->m_parameters->m_modelMaxSize ), false );
+                planeMatrix.TransformLoops( &result );
                 return result;
             }
 
@@ -246,18 +247,17 @@ public:
             if( linear_extrusion ) {
                 const auto extrusion = this->m_primitivesConverter->ConvertPoint( linear_extrusion->m_ExtrudedDirection->m_DirectionRatios ) *
                     (float)linear_extrusion->m_Depth->m_value;
-                const auto result = this->m_extruder->Extrude( curve, extrusion, false );
-                m.TranformLoops( &result );
+                auto result = this->m_extruder->Extrude( curve, extrusion, false );
+                m.TransformLoops( &result );
                 return result;
             }
 
             const auto surface_of_revolution = dynamic_pointer_cast<IfcSurfaceOfRevolution>( swept_surface );
             if( surface_of_revolution ) {
-                const auto axisDirection = this->m_primitivesConverter->ConvertPoint( surface_of_revolution->m_AxisPosition );
-                // FIXME: Where is AxisLine????
-                const auto axisLocation = AVector::New();
-                const auto result = this->m_extruder->Revolve( curve, axisLocation, axisDirection, (float)M_PI * 2.0f, false );
-                m.TranformLoops( &result );
+                const auto axisDirection = this->m_primitivesConverter->ConvertPoint( surface_of_revolution->m_AxisPosition->m_Axis->m_DirectionRatios );
+                const auto axisLocation = this->m_primitivesConverter->ConvertPoint( surface_of_revolution->m_AxisPosition->m_Location );
+                auto result = this->m_extruder->Revolve( curve, axisLocation, axisDirection, (float)M_PI * 2.0f, false );
+                m.TransformLoops( &result );
                 return result;
             }
 

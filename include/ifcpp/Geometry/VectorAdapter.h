@@ -33,7 +33,7 @@ public:
     }
 
     static void Normalize( TVector* v ) {
-        float invLength = 1.0f / VectorAdapter::Len( v );
+        float invLength = 1.0f / VectorAdapter::Len( *v );
         v->x *= invLength;
         v->y *= invLength;
         v->z *= invLength;

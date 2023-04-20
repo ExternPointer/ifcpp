@@ -89,6 +89,7 @@ public:
         }
 
         // TODO: Log error
+        return {};
     }
 
 private:
@@ -107,10 +108,10 @@ private:
             }
         }
 
-        const auto hole = this->m_geomUtils->CombineLoops( holes );
+        auto hole = this->m_geomUtils->CombineLoops( holes );
         std::reverse( std::begin( hole ), std::end( hole ) );
 
-        return this->m_geomUtils->CombineLoops( { outer, holes } );
+        return this->m_geomUtils->CombineLoops( { outer, hole } );
     }
 
     TPath ConvertArbitraryOpenProfileDef( const shared_ptr<IfcArbitraryOpenProfileDef>& profile ) {
@@ -138,7 +139,7 @@ private:
                 right.push_back( curve[ i ] + normals[ i ] * thickness * 0.5f );
             }
             auto result = left;
-            std::back_inserter( std::rbegin( right ), std::rend( right ), result );
+            std::copy( std::rbegin( right ), std::rend( right ), std::back_inserter( result ) );
             return this->m_geomUtils->SimplifyLoop( result );
         }
         return this->m_geomUtils->SimplifyCurve( this->m_curveConverter->ConvertCurve( profile->m_Curve ) );
@@ -196,37 +197,29 @@ private:
                 const auto innerR = (float)hollow->m_InnerFilletRadius->m_value;
 
                 if( outerR > this->m_parameters->m_epsilon ) {
-                    this->m_geomUtils->AppendToLoop(
-                        &outer, this->m_geomUtils->BuildCircle( outerR, 0, M_PI_2, 5, AVector::New( xDim * 0.5 - outerR, yDim * 0.5 - outerR ) ) );
-                    this->m_geomUtils->AppendToLoop(
-                        &outer, this->m_geomUtils->BuildCircle( outerR, M_PI_2, M_PI_2, AVector::New( -xDim * 0.5 + outerR, yDim * 0.5 - outerR ) ) );
-                    this->m_geomUtils->AppendToLoop(
-                        &outer, this->m_geomUtils->BuildCircle( outerR, M_PI, M_PI_2, AVector::New( -xDim * 0.5 + outerR, -yDim * 0.5 + outerR ) ) );
-                    this->m_geomUtils->AppendToLoop(
-                        &outer, this->m_geomUtils->BuildCircle( outerR, 3 * M_PI_2, M_PI_2, AVector::New( xDim * 0.5 - outerR, -yDim * 0.5 + outerR ) ) );
+                    this->AddArc( &outer, outerR, 0, M_PI_2, xDim * 0.5 - outerR, yDim * 0.5 - outerR );
+                    this->AddArc( &outer, outerR, M_PI_2, M_PI_2, -xDim * 0.5 + outerR, yDim * 0.5 - outerR );
+                    this->AddArc( &outer, outerR, M_PI, M_PI_2, -xDim * 0.5 + outerR, -yDim * 0.5 + outerR );
+                    this->AddArc( &outer, outerR, 3 * M_PI_2, M_PI_2, xDim * 0.5 - outerR, -yDim * 0.5 + outerR );
                 } else {
-                    outer.push_back( AVector::Mew( -xDim * 0.5, -yDim * 0.5 ) );
-                    outer.push_back( AVector::Mew( xDim * 0.5, -yDim * 0.5 ) );
-                    outer.push_back( AVector::Mew( xDim * 0.5, yDim * 0.5 ) );
-                    outer.push_back( AVector::Mew( -xDim * 0.5, yDim * 0.5 ) );
+                    outer.push_back( AVector::New( -xDim * 0.5, -yDim * 0.5 ) );
+                    outer.push_back( AVector::New( xDim * 0.5, -yDim * 0.5 ) );
+                    outer.push_back( AVector::New( xDim * 0.5, yDim * 0.5 ) );
+                    outer.push_back( AVector::New( -xDim * 0.5, yDim * 0.5 ) );
                 }
 
                 xDim -= 2 * t;
                 yDim -= 2 * t;
                 if( innerR > this->m_parameters->m_epsilon ) {
-                    this->m_geomUtils->AppendToLoop(
-                        &inner, this->m_geomUtils->BuildCircle( outerR, 0, M_PI_2, 5, AVector::New( xDim * 0.5 - outerR, yDim * 0.5 - innerR ) ) );
-                    this->m_geomUtils->AppendToLoop(
-                        &inner, this->m_geomUtils->BuildCircle( outerR, M_PI_2, M_PI_2, AVector::New( -xDim * 0.5 + outerR, yDim * 0.5 - innerR ) ) );
-                    this->m_geomUtils->AppendToLoop(
-                        &inner, this->m_geomUtils->BuildCircle( outerR, M_PI, M_PI_2, AVector::New( -xDim * 0.5 + outerR, -yDim * 0.5 + innerR ) ) );
-                    this->m_geomUtils->AppendToLoop(
-                        &inner, this->m_geomUtils->BuildCircle( outerR, 3 * M_PI_2, M_PI_2, AVector::New( xDim * 0.5 - outerR, -yDim * 0.5 + innerR ) ) );
+                    this->AddArc( &inner, innerR, 0, M_PI_2, xDim * 0.5 - innerR, yDim * 0.5 - innerR );
+                    this->AddArc( &inner, innerR, M_PI_2, M_PI_2, -xDim * 0.5 + innerR, yDim * 0.5 - innerR );
+                    this->AddArc( &inner, innerR, M_PI, M_PI_2, -xDim * 0.5 + innerR, -yDim * 0.5 + innerR );
+                    this->AddArc( &inner, innerR, 3 * M_PI_2, M_PI_2, xDim * 0.5 - innerR, -yDim * 0.5 + innerR );
                 } else {
-                    inner.push_back( AVector::Mew( -xDim * 0.5, -yDim * 0.5 ) );
-                    inner.push_back( AVector::Mew( xDim * 0.5, -yDim * 0.5 ) );
-                    inner.push_back( AVector::Mew( xDim * 0.5, yDim * 0.5 ) );
-                    inner.push_back( AVector::Mew( -xDim * 0.5, yDim * 0.5 ) );
+                    inner.push_back( AVector::New( -xDim * 0.5, -yDim * 0.5 ) );
+                    inner.push_back( AVector::New( xDim * 0.5, -yDim * 0.5 ) );
+                    inner.push_back( AVector::New( xDim * 0.5, yDim * 0.5 ) );
+                    inner.push_back( AVector::New( -xDim * 0.5, yDim * 0.5 ) );
                 }
                 std::reverse( std::begin( inner ), std::end( inner ) );
                 return this->m_geomUtils->CombineLoops( { outer, inner } );
@@ -236,14 +229,10 @@ private:
             if( rounded_rectangle && rounded_rectangle->m_RoundingRadius ) {
                 TPath result;
                 const auto radius = (float)rounded_rectangle->m_RoundingRadius->m_value;
-                this->m_geomUtils->AppendToLoop(
-                    &result, this->m_geomUtils->BuildCircle( radius, 0, M_PI_2, 5, AVector::New( xDim * 0.5 - radius, yDim * 0.5 - radius ) ) );
-                this->m_geomUtils->AppendToLoop(
-                    &result, this->m_geomUtils->BuildCircle( radius, M_PI_2, M_PI_2, AVector::New( -xDim * 0.5 + radius, yDim * 0.5 - radius ) ) );
-                this->m_geomUtils->AppendToLoop(
-                    &result, this->m_geomUtils->BuildCircle( radius, M_PI, M_PI_2, AVector::New( -xDim * 0.5 + radius, -yDim * 0.5 + radius ) ) );
-                this->m_geomUtils->AppendToLoop(
-                    &result, this->m_geomUtils->BuildCircle( radius, 3 * M_PI_2, M_PI_2, AVector::New( xDim * 0.5 - radius, -yDim * 0.5 + radius ) ) );
+                this->AddArc( &result, radius, 0, M_PI_2, xDim * 0.5 - radius, yDim * 0.5 - radius );
+                this->AddArc( &result, radius, M_PI_2, M_PI_2, -xDim * 0.5 + radius, yDim * 0.5 - radius );
+                this->AddArc( &result, radius, M_PI, M_PI_2, -xDim * 0.5 + radius, -yDim * 0.5 + radius );
+                this->AddArc( &result, radius, 3 * M_PI_2, M_PI_2, xDim * 0.5 - radius, -yDim * 0.5 + radius );
                 return result;
             }
 
@@ -277,13 +266,13 @@ private:
                 return {};
             }
             // TODO: getNumVerticesPerCircleWithRadius
-            outer = this->m_geomUtils->BuildCircle( radius, 0.0f, M_PI * 2, this->m_parameters->m_NumVerticesPerCircle );
+            outer = this->m_geomUtils->BuildCircle( radius, 0.0f, M_PI * 2, this->m_parameters->m_numVerticesPerCircle );
 
             const auto hollow = dynamic_pointer_cast<IfcCircleHollowProfileDef>( profile );
             if( hollow ) {
                 radius -= (float)hollow->m_WallThickness->m_value;
                 // TODO: getNumVerticesPerCircleWithRadius
-                inner = this->m_geomUtils->BuildCircle( radius, 0.0f, M_PI * 2, this->m_parameters->m_NumVerticesPerCircle );
+                inner = this->m_geomUtils->BuildCircle( radius, 0.0f, M_PI * 2, this->m_parameters->m_numVerticesPerCircle );
             }
             std::reverse( std::begin( inner ), std::end( inner ) );
             return this->m_geomUtils->CombineLoops( { outer, inner } );
@@ -291,10 +280,10 @@ private:
 
         const auto ellipse_profile_def = dynamic_pointer_cast<IfcEllipseProfileDef>( profile );
         if( ellipse_profile_def && ellipse_profile_def->m_SemiAxis1 && ellipse_profile_def->m_SemiAxis2 ) {
-            double x_radius = ellipse_profile_def->m_SemiAxis1->m_value;
-            double y_radius = ellipse_profile_def->m_SemiAxis2->m_value;
+            const auto x_radius = (float)ellipse_profile_def->m_SemiAxis1->m_value;
+            const auto y_radius = (float)ellipse_profile_def->m_SemiAxis2->m_value;
             // TODO: getNumVerticesPerCircleWithRadius
-            return this->m_geomUtils->BuildCircle( 0.0f, (float)( M_PI * 2 ), x_radius, y_radius, this->m_parameters->m_NumVerticesPerCircle );
+            return this->m_geomUtils->BuildEllipse( x_radius, y_radius, 0.0f, (float)( M_PI * 2 ), this->m_parameters->m_numVerticesPerCircle );
         }
 
         const auto i_shape = dynamic_pointer_cast<IfcIShapeProfileDef>( profile );
@@ -304,7 +293,10 @@ private:
             const auto tw = (float)i_shape->m_WebThickness->m_value;
             const auto tf = (float)i_shape->m_FlangeThickness->m_value;
             const auto fillet_radius = (float)i_shape->m_FilletRadius->m_value;
-            const auto flange_edge_radius = (float)i_shape->m_FlangeEdgeRadius->m_value;
+            const auto flange_edge_radius = 0.0f;
+            if( i_shape->m_FlangeEdgeRadius ) {
+                (float)i_shape->m_FlangeEdgeRadius->m_value;
+            }
             TPath result;
 
             result.push_back( AVector::New( width * 0.5f, -h * 0.5f ) );
@@ -312,41 +304,39 @@ private:
             // TODO: implement flange slope
             if( flange_edge_radius > this->m_parameters->m_epsilon ) {
                 this->m_geomUtils->AppendToLoop( &result,
-                                                 this->m_geomUtils->BuildCircle( flange_edge_radius, 0, M_PI_2, this->m_parameters->m_NumVerticesPerCircle,
+                                                 this->m_geomUtils->BuildCircle( flange_edge_radius, 0, M_PI_2, this->m_parameters->m_numVerticesPerCircle,
                                                                                  width * 0.5f - flange_edge_radius, -h * 0.5f + tf - flange_edge_radius ) );
             } else {
                 result.push_back( AVector::New( width * 0.5f, -h * 0.5f + tf ) );
             }
             if( fillet_radius > this->m_parameters->m_epsilon ) {
                 this->m_geomUtils->AppendToLoop( &result,
-                                                 this->m_geomUtils->BuildCircle( fillet_radius, 3 * M_PI_2, -M_PI_2, this->m_parameters->m_NumVerticesPerCircle,
+                                                 this->m_geomUtils->BuildCircle( fillet_radius, 3 * M_PI_2, -M_PI_2, this->m_parameters->m_numVerticesPerCircle,
                                                                                  tw * 0.5f + fillet_radius, -h * 0.5f + tf + fillet_radius ) );
             } else {
                 result.push_back( AVector::New( tw * 0.5f, ( -h * 0.5f + tf ) ) );
             }
 
             const auto asym_I_profile = dynamic_pointer_cast<IfcAsymmetricIShapeProfileDef>( i_shape );
-            if( asym_I_profile ) {
-                if( asym_I_profile->m_TopFlangeWidth ) {
-                    const auto width_top = (float)asym_I_profile->m_TopFlangeWidth->m_value;
-                    float tfTop = tf;
+            if( asym_I_profile && asym_I_profile->m_TopFlangeWidth ) {
+                const auto width_top = (float)asym_I_profile->m_TopFlangeWidth->m_value;
+                float tfTop = tf;
 
-                    if( asym_I_profile->m_TopFlangeThickness ) {
-                        tfTop = (float)asym_I_profile->m_TopFlangeThickness->m_value;
-                    }
-                    float rTop = fillet_radius;
-                    if( asym_I_profile->m_TopFlangeFilletRadius ) {
-                        rTop = (float)asym_I_profile->m_TopFlangeFilletRadius->m_value;
-                    }
-
-                    if( rTop > this->m_parameters->m_epsilon ) {
-                        this->AddArc( &result, rTop, (float)M_PI, (float)-M_PI_2, tw * 0.5f + rTop, h * 0.5f - tfTop - rTop );
-                    } else {
-                        result.push_back( AVector::New( tw * 0.5f, ( h * 0.5f - tfTop ) ) );
-                    }
-                    result.push_back( AVector::New( width_top * 0.5f, ( h * 0.5f - tfTop ) ) );
-                    result.push_back( AVector::New( width_top * 0.5f, h * 0.5f ) );
+                if( asym_I_profile->m_TopFlangeThickness ) {
+                    tfTop = (float)asym_I_profile->m_TopFlangeThickness->m_value;
                 }
+                float rTop = fillet_radius;
+                if( asym_I_profile->m_TopFlangeFilletRadius ) {
+                    rTop = (float)asym_I_profile->m_TopFlangeFilletRadius->m_value;
+                }
+
+                if( rTop > this->m_parameters->m_epsilon ) {
+                    this->AddArc( &result, rTop, (float)M_PI, (float)-M_PI_2, tw * 0.5f + rTop, h * 0.5f - tfTop - rTop );
+                } else {
+                    result.push_back( AVector::New( tw * 0.5f, ( h * 0.5f - tfTop ) ) );
+                }
+                result.push_back( AVector::New( width_top * 0.5f, ( h * 0.5f - tfTop ) ) );
+                result.push_back( AVector::New( width_top * 0.5f, h * 0.5f ) );
             } else {
                 this->MirrorCopyPathReverse( &result, false, true );
             }
@@ -451,7 +441,7 @@ private:
                 result.push_back( AVector::New( ( -width * 0.5f + tw ), ( -height * 0.5f + tf + z ) ) );
             }
 
-            this->MirrorCopyPathReverse( result, false, true );
+            this->MirrorCopyPathReverse( &result, false, true );
             return result;
         }
 
@@ -467,7 +457,7 @@ private:
                 fillet_radius = (float)c_shape->m_InternalFilletRadius->m_value;
             }
 
-            if( fillet_radius > this - m_parameters->m_epsilon ) {
+            if( fillet_radius > this->m_parameters->m_epsilon ) {
                 this->AddArc( &result, fillet_radius + t, M_PI, M_PI_2, -width * 0.5 + t + fillet_radius, -h * 0.5 + t + fillet_radius );
             } else {
                 result.push_back( AVector::New( -width * 0.5, -h * 0.5 ) );
@@ -530,7 +520,7 @@ private:
             }
 
             this->MirrorCopyPath( &result, true, true );
-            return;
+            return result;
         }
 
         shared_ptr<IfcTShapeProfileDef> t_shape = dynamic_pointer_cast<IfcTShapeProfileDef>( profile );
@@ -617,18 +607,19 @@ private:
 
 
         // TODO: Log error (unknown profile)
+        return {};
     }
 
     void AddArc( TPath* path, float radius, float startAngle, float openningAngle, float x, float y ) {
         this->m_geomUtils->AppendToLoop(
-            path, this->m_geomUtils->BuildCircle( radius, startAngle, openningAngle, this->m_parameters->m_NumVerticesPerCircle, x, y ) );
+            path, this->m_geomUtils->BuildCircle( radius, startAngle, openningAngle, this->m_parameters->m_numVerticesPerCircle, x, y ) );
     }
 
     static void MirrorCopyPath( TPath* coords, bool mirror_on_y_axis, bool mirror_on_x_axis ) {
         int points_count = coords->size();
         double x, y;
         for( int i = 0; i < points_count; ++i ) {
-            const auto& p = coords[ i ];
+            const auto& p = ( *coords )[ i ];
             if( mirror_on_y_axis ) {
                 x = -p.x;
             } else {
@@ -647,7 +638,7 @@ private:
         int points_count = path->size();
         float x, y;
         for( int i = points_count - 1; i >= 0; --i ) {
-            const auto& p = path[ i ];
+            const auto& p = ( *path )[ i ];
             if( mirrorOnY ) {
                 x = -p.x;
             } else {

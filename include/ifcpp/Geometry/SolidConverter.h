@@ -83,7 +83,7 @@ public:
         }
 
         shared_ptr<IfcManifoldSolidBrep> manifold_solid_brep = dynamic_pointer_cast<IfcManifoldSolidBrep>( solid_model );
-        if( manifold_solid_brep && manifold_solid_brep->m_Outer ) {
+        if( manifold_solid_brep ) {
             return this->ConvertManifoldSolidBrep( manifold_solid_brep );
         }
 
@@ -178,13 +178,13 @@ private:
     }
 
     std::vector<TPolygon> ConvertExtrudedAreaSolid( const shared_ptr<IfcExtrudedAreaSolid>& extruded_area ) {
-        if( !extruded_area->m_ExtrudedDirection || !extruded_area->m_Depth || extruded_area->m_SweptArea ) {
+        if( !extruded_area->m_ExtrudedDirection || !extruded_area->m_Depth || !extruded_area->m_SweptArea ) {
             // TODO: Log error
             return {};
         }
         const auto depth = (float)extruded_area->m_Depth->m_value;
         const auto extrusion = this->m_primitivesConverter->ConvertPoint( extruded_area->m_ExtrudedDirection->m_DirectionRatios ) * depth;
-        const auto loops = this->m_extruder->Extrude( this->m_profileConverter->ConvertProfile( extruded_area->m_SweptArea ), extrusion );
+        auto loops = this->m_extruder->Extrude( this->m_profileConverter->ConvertProfile( extruded_area->m_SweptArea ), extrusion );
         const auto m = this->m_primitivesConverter->ConvertPlacement( extruded_area->m_Position );
         m.TransformLoops( &loops );
         return this->CreatePolygons( loops );
@@ -198,7 +198,7 @@ private:
         //  TODO: Trim curve with StartParam and EndParam, use FixedReference for swept area orientation
 
         const auto profile_paths = this->m_profileConverter->ConvertProfile( fixed_reference_swept_area_solid->m_SweptArea );
-        const auto loops = this->m_extruder->Sweep( profile_paths, this->m_curveConverter->ConvertCurve( fixed_reference_swept_area_solid->m_Directrix ) );
+        auto loops = this->m_extruder->Sweep( profile_paths, this->m_curveConverter->ConvertCurve( fixed_reference_swept_area_solid->m_Directrix ) );
         const auto m = this->m_primitivesConverter->ConvertPlacement( fixed_reference_swept_area_solid->m_Position );
         m.TransformLoops( &loops );
         return this->CreatePolygons( loops );
@@ -209,15 +209,15 @@ private:
             // TODO: Log error
             return {};
         }
-        float revolveAngle = revolved_area->m_Angle * this->m_parameters->m_angleFactor;
+        float revolveAngle = (float)revolved_area->m_Angle->m_value * this->m_parameters->m_angleFactor;
         TVector axisLocation = AVector::New( 0, 0, 0 );
         TVector axisDirection = AVector::New( 1, 0, 0 );
 
         axisLocation = this->m_primitivesConverter->ConvertPoint( revolved_area->m_Axis->m_Location );
         axisDirection = this->m_primitivesConverter->ConvertPoint( revolved_area->m_Axis->m_Axis->m_DirectionRatios );
 
-        const auto loops =
-            this->m_extruder->Revolve( this->m_profileConverter->ConvertProfile( revolved_area->m_SweptArea, axisLocation, axisDirection, revolveAngle ) );
+        auto loops =
+            this->m_extruder->Revolve( this->m_profileConverter->ConvertProfile( revolved_area->m_SweptArea ), axisLocation, axisDirection, revolveAngle );
         const auto m = this->m_primitivesConverter->ConvertPlacement( revolved_area->m_Position );
         m.TransformLoops( &loops );
         return this->CreatePolygons( loops );
@@ -308,10 +308,10 @@ private:
 
         const auto basis_curve_points = this->m_curveConverter->ConvertCurve( directrix_curve );
 
-        const auto outer = this->m_geomUtils->BuildCircle( radius, 0.0f, (float)( M_PI * 2 ), this->m_parameters->m_NumVerticesPerCircle );
+        const auto outer = this->m_geomUtils->BuildCircle( radius, 0.0f, (float)( M_PI * 2 ), this->m_parameters->m_numVerticesPerCircle );
         std::vector<TVector> inner;
         if( radius_inner > this->m_parameters->m_epsilon ) {
-            inner = this->m_geomUtils->BuildCircle( radius_inner, 0.0f, -(float)( M_PI * 2 ), this->m_parameters->m_NumVerticesPerCircle );
+            inner = this->m_geomUtils->BuildCircle( radius_inner, 0.0f, -(float)( M_PI * 2 ), this->m_parameters->m_numVerticesPerCircle );
         }
         const auto loops = this->m_extruder->Sweep( this->m_geomUtils->CombineLoops( { outer, inner } ), basis_curve_points );
         return this->CreatePolygons( loops );
@@ -353,38 +353,37 @@ private:
             return {};
         }
 
-        const auto planePosition = this->m_primitivesConverter->ConvertPlacement( elem_base_surface->m_Position );
-        if( half_space_solid->m_AgreementFlag && !half_space_solid->m_AgreementFlag->m_value ) {
-            planePosition.data[ 0 ][ 2 ] *= -1;
-            planePosition.data[ 1 ][ 2 ] *= -1;
-            planePosition.data[ 2 ][ 2 ] *= -1;
+        auto planeMatrix = this->m_primitivesConverter->ConvertPlacement( elem_base_surface->m_Position );
+        auto planeNormal = AVector::New( planeMatrix.data[ 0 ][ 2 ], planeMatrix.data[ 1 ][ 2 ], planeMatrix.data[ 2 ][ 2 ] );
+
+        auto extrusion = AVector::New( 0, 0, 1 ) * this->m_parameters->m_modelMaxSize;
+        if( AVector::Dot( planeNormal, extrusion ) > 0 && half_space_solid->m_AgreementFlag && !half_space_solid->m_AgreementFlag->m_value ) {
+            extrusion = -extrusion;
         }
 
         const auto polygonal = std::dynamic_pointer_cast<IfcPolygonalBoundedHalfSpace>( half_space_solid );
         if( polygonal ) {
             // FIXME: Always loop?????
-            const auto profile = this->m_geomUtils->SimplifyLoop( this->m_profileConverter->ConvertCurve( polygonal->m_PolygonalBoundary ) );
-            const auto loops = this->m_extruder->Extrude( profile, this->m_parameters->m_modelMaxSize );
+            auto profile = this->m_geomUtils->SimplifyLoop( this->m_curveConverter->ConvertCurve( polygonal->m_PolygonalBoundary ) );
             const auto m = this->m_primitivesConverter->ConvertPlacement( polygonal->m_Position );
-            m.TransformLoops( &loops );
-            planePosition.TransformLoops( &loops );
+            profile = this->GetProjection( planeMatrix, profile );
+            auto loops = this->m_extruder->Extrude( profile, extrusion );
             return this->CreatePolygons( loops );
         }
 
-        const std::vector<TVector> profile = {
+        std::vector<TVector> profile = {
             AVector::New( -this->m_parameters->m_modelMaxSize, -this->m_parameters->m_modelMaxSize ),
             AVector::New( this->m_parameters->m_modelMaxSize, -this->m_parameters->m_modelMaxSize ),
             AVector::New( this->m_parameters->m_modelMaxSize, this->m_parameters->m_modelMaxSize ),
             AVector::New( -this->m_parameters->m_modelMaxSize, this->m_parameters->m_modelMaxSize ),
         };
-        const auto loops = this->m_extruder->Extrude( profile, this->m_parameters->m_modelMaxSize );
-        planePosition.TransformLoops( &loops );
+        profile = this->GetProjection( planeMatrix, profile );
+        auto loops = this->m_extruder->Extrude( profile, extrusion );
         return this->CreatePolygons( loops );
     }
 
     std::vector<TPolygon> ConvertCsgPrimitive3D( const shared_ptr<IfcCsgPrimitive3D>& csg_primitive ) {
         // ENTITY IfcCsgPrimitive3D  ABSTRACT SUPERTYPE OF(ONEOF(IfcBlock, IfcRectangularPyramid, IfcRightCircularCone, IfcRightCircularCylinder, IfcSphere
-
         const auto primitive_placement_matrix = this->m_primitivesConverter->ConvertPlacement( csg_primitive->m_Position );
 
         const auto block = dynamic_pointer_cast<IfcBlock>( csg_primitive );
@@ -544,7 +543,7 @@ private:
 
         // TODO: Use radius
         const auto circle = this->m_geomUtils->BuildCircle( radius, 0, (float)( M_PI * 2 ), this->m_parameters->m_numVerticesPerCircle );
-        const auto loops = this->m_extruder->Extrude( this->m_geomUtils->SimplifyLoop( circle ), AVector::New( 0, 0, height ) );
+        auto loops = this->m_extruder->Extrude( this->m_geomUtils->SimplifyLoop( circle ), AVector::New( 0, 0, height ) );
         primitive_placement_matrix.TransformLoops( &loops );
         return this->CreatePolygons( loops );
     }
@@ -617,14 +616,36 @@ private:
         return polygons;
     }
 
-    std::vector<TPolygon> CreatePolygons( std::vector<std::vector<TVector>> loops ) {
+    std::vector<TPolygon> CreatePolygons( const std::vector<std::vector<TVector>>& loops ) {
         std::vector<TPolygon> result;
         for( const auto& l: loops ) {
+            if( l.size() < 3 ) {
+                // WTF????
+                // TODO: Log error
+                continue;
+            }
             const auto indices = this->m_adapter->Triangulate( l );
-            for( int i = 0; i < indices.size() - 2; i++ ) {
-                result.push_back( this->m_adapter->CreatePolygon( l, { i, i + 1, i + 2 } ) );
+            for( int i = 0; i < indices.size() - 2; i += 3 ) {
+                result.push_back( this->m_adapter->CreatePolygon( l, { indices[ i ], indices[ i + 1 ], indices[ i + 2 ] } ) );
             }
         }
+        return result;
+    }
+
+    std::vector<TVector> GetProjection( Matrix<TVector> planeMatrix, std::vector<TVector> loop ) {
+        auto right = AVector::New( planeMatrix.data[ 0 ][ 0 ], planeMatrix.data[ 1 ][ 0 ], planeMatrix.data[ 2 ][ 0 ] );
+        auto up = AVector::New( planeMatrix.data[ 0 ][ 1 ], planeMatrix.data[ 1 ][ 1 ], planeMatrix.data[ 2 ][ 1 ] );
+        auto planeNormal = AVector::New( planeMatrix.data[ 0 ][ 2 ], planeMatrix.data[ 1 ][ 2 ], planeMatrix.data[ 2 ][ 2 ] );
+        auto planePosition = AVector::New( planeMatrix.data[ 0 ][ 3 ], planeMatrix.data[ 1 ][ 3 ], planeMatrix.data[ 2 ][ 3 ] );
+
+        std::vector<TVector> result = loop;
+
+        for( auto& p: result ) {
+            float x = AVector::Dot( right, p - planePosition );
+            float y = AVector::Dot( up, p - planePosition );
+            p = planePosition + right * x + up * y;
+        }
+
         return result;
     }
 };

@@ -5,11 +5,15 @@
 
 #include "ifcpp/Geometry/CAdapter.h"
 #include "ifcpp/Geometry/CurveConverter.h"
+#include "ifcpp/Geometry/Extruder.h"
+#include "ifcpp/Geometry/GeomUtils.h"
 #include "ifcpp/Geometry/GeometryConverter.h"
 #include "ifcpp/Geometry/Matrix.h"
 #include "ifcpp/Geometry/Parameters.h"
 #include "ifcpp/Geometry/PrimitivesConverter.h"
+#include "ifcpp/Geometry/ProfileConverter.h"
 #include "ifcpp/Geometry/SolidConverter.h"
+#include "ifcpp/Geometry/SplineConverter.h"
 
 #include "ifcpp/Model/BuildingModel.h"
 #include "ifcpp/Model/UnitConverter.h"
@@ -42,31 +46,37 @@ class GeometryGenerator {
 
     std::shared_ptr<BuildingModel> m_ifcModel;
     std::shared_ptr<TAdapter> m_adapter;
-    std::shared_ptr<PrimitivesConverter<TVector>> m_primitivesConverter;
+
+    std::shared_ptr<CurveConverter<TVector>> m_curveConverter;
+    std::shared_ptr<Extruder<TVector>> m_extruder;
     std::shared_ptr<GeometryConverter<TVector>> m_geometryConverter;
-    std::shared_ptr<GeometryConverter<TVector>> m_curveConverter;
+    std::shared_ptr<GeomUtils<TVector>> m_geomUtils;
+    std::shared_ptr<PrimitivesConverter<TVector>> m_primitivesConverter;
+    std::shared_ptr<ProfileConverter<TVector>> m_profileConverter;
     std::shared_ptr<SolidConverter<TAdapter>> m_solidConverter;
+    std::shared_ptr<SplineConverter<TVector>> m_splineConverter;
     std::shared_ptr<Parameters> m_parameters;
 
 public:
-    explicit GeometryGenerator( const std::shared_ptr<BuildingModel>& ifcModel, const std::shared_ptr<TAdapter> adapter )
+    GeometryGenerator( const std::shared_ptr<BuildingModel>& ifcModel, const std::shared_ptr<TAdapter> adapter,
+                       const std::shared_ptr<CurveConverter<TVector>>& curveConverter, const std::shared_ptr<Extruder<TVector>>& extruder,
+                       const std::shared_ptr<GeometryConverter<TVector>>& geometryConverter, const std::shared_ptr<GeomUtils<TVector>>& geomUtils,
+                       const std::shared_ptr<PrimitivesConverter<TVector>>& primitivesConverter,
+                       const std::shared_ptr<ProfileConverter<TVector>>& profileConverter, const std::shared_ptr<SolidConverter<TAdapter>>& solidConverter,
+                       const std::shared_ptr<SplineConverter<TVector>>& splineConverter, const std::shared_ptr<Parameters>& parameters )
         : m_ifcModel( ifcModel )
-        , m_adapter( adapter ) {
-        this->m_parameters = std::make_shared<Parameters>( Parameters {
-            (float)ifcModel->getUnitConverter()->getLengthInMeterFactor(),
-            (float)ifcModel->getUnitConverter()->getAngleInRadiantFactor(),
-            1e-6,
-            14,
-            5,
-            10000,
-            4,
-        } );
-        this->m_primitivesConverter = std::make_shared<PrimitivesConverter<TVector>>();
-        this->m_curveConverter = std::make_shared<CurveConverter<TVector>>( this->m_primitivesConverter, this->m_parameters );
-        this->m_geometryConverter = std::make_shared<GeometryConverter<TVector>>( this->m_curveConverter, this->m_primitivesConverter, this->m_parameters );
-        this->m_solidConverter =
-            std::make_shared<SolidConverter<TAdapter>>( this->m_primitivesConverter, this->m_curveConverter, this->m_profileConverter, this->m_extruder,
-                                                        this->m_geometryConverter, this->m_adapter, this->m_geomUtils, this->m_parameters );
+        , m_adapter( adapter )
+        , m_curveConverter( curveConverter )
+        , m_extruder( extruder )
+        , m_geometryConverter( geometryConverter )
+        , m_geomUtils( geomUtils )
+        , m_primitivesConverter( primitivesConverter )
+        , m_profileConverter( profileConverter )
+        , m_solidConverter( solidConverter )
+        , m_splineConverter( splineConverter )
+        , m_parameters( parameters ) {
+        this->m_parameters->m_lengthFactor = (float)ifcModel->getUnitConverter()->getLengthInMeterFactor();
+        this->m_parameters->m_angleFactor = (float)ifcModel->getUnitConverter()->getAngleInRadiantFactor();
     }
 
     std::vector<TEntity> GenerateGeometry() {
@@ -82,11 +92,7 @@ public:
             if( dynamic_pointer_cast<IfcSpace>( object ) ) {
                 continue;
             }
-            auto g = GenerateGeometryFromObject( object );
-            // if( !g->m_meshes.empty() ) {
-            // SubtractOpenings( g, lengthFactor, angleFactor );
-            entities.push_back( g );
-            //}
+            entities.push_back( GenerateGeometryFromObject( object ) );
         }
         return entities;
     }
@@ -97,11 +103,11 @@ private:
         std::vector<TPolyline> resultPolylines;
         const auto product = dynamic_pointer_cast<IfcProduct>( object );
         if( !product ) {
-            return this->m_adapter->CreateEntity( object, resultPolygons, resultPolylines );
+            return this->m_adapter->CreateEntity( object, {}, {} );
         }
         const auto& productRepresentation = product->m_Representation;
         if( !productRepresentation ) {
-            return this->m_adapter->CreateEntity( object, resultPolygons, resultPolylines );
+            return this->m_adapter->CreateEntity( object, {}, {} );
         }
 
         for( const auto& representation: productRepresentation->m_Representations ) {
@@ -118,23 +124,47 @@ private:
         }
 
         auto matrix = TMatrix::GetScale( this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor );
-        TMatrix::Multiply( &matrix, this->m_geometryConverter->ConvertObjectPlacement( product->m_ObjectPlacement ) );
-        this->m_adapter.Transform( &resultPolygons, matrix );
-        this->m_adapter.Tranform( &resultPolylines, matrix );
+        TMatrix::Multiply( &matrix, this->m_primitivesConverter->ConvertPlacement( product->m_ObjectPlacement ) );
+        this->m_adapter->Transform( &resultPolygons, matrix );
+        this->m_adapter->Transform( &resultPolylines, matrix );
 
-        // Subtract openings
+        const auto opening = this->ConvertRelatedOpening( object );
+        resultPolygons = this->m_adapter->ComputeDifference( resultPolygons, opening );
+
+        return this->m_adapter->CreateEntity( object, resultPolygons, resultPolylines );
+    }
+
+    std::vector<TPolygon> ConvertRelatedOpening( const std::shared_ptr<IFC4X3::IfcObjectDefinition>& object ) {
+        std::vector<TPolygon> resultPolygons;
         if( const auto element = std::dynamic_pointer_cast<IfcElement>( object ) ) {
             for( const auto& openingRef: element->m_HasOpenings_inverse ) {
+                std::vector<TPolygon> polygons;
                 const auto openingRel = openingRef.lock();
                 if( openingRel ) {
                     const auto opening = openingRel->m_RelatedOpeningElement;
-                    auto [ voidPolygons, voidPolylines ] = ConvertGeometryRepresentation( opening );
-                    resultPolygons = this->m_adapter->ComputeDifference( resultPolygons, voidPolygons );
+
+                    if( !opening->m_Representation ) {
+                        continue;
+                    }
+                    for( const auto& representation: opening->m_Representation->m_Representations ) {
+                        for( const auto& item: representation->m_Items ) {
+                            // ENTITY IfcRepresentationItem  ABSTRACT SUPERTYPE OF(ONEOF(IfcGeometricRepresentationItem,
+                            // IfcMappedItem, IfcStyledItem, IfcTopologicalRepresentationItem));
+                            const auto geometric = dynamic_pointer_cast<IfcGeometricRepresentationItem>( item );
+                            if( geometric ) {
+                                auto [ p, l ] = ConvertGeometryRepresentation( geometric );
+                                std::copy( p.begin(), p.end(), std::back_inserter( polygons ) );
+                            }
+                        }
+                    }
+                    auto placement = TMatrix::GetScale( this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor );
+                    TMatrix::Multiply( &placement, this->m_primitivesConverter->ConvertPlacement( opening->m_ObjectPlacement ) );
+                    this->m_adapter->Transform( &polygons, placement );
+                    std::copy( polygons.begin(), polygons.end(), std::back_inserter( resultPolygons ) );
                 }
             }
         }
-
-        return this->m_adapter->CreateEntity( object, resultPolygons, resultPolylines );
+        return resultPolygons;
     }
 
     std::tuple<std::vector<TPolygon>, std::vector<TPolyline>>
@@ -164,7 +194,7 @@ private:
 
         const auto curve = dynamic_pointer_cast<IfcCurve>( geometricRepresentation );
         if( curve ) {
-            return { {}, this->m_adapter->CreatePolyline( this->m_curveConverter->ConvertCurve( curve ) ) };
+            return { {}, { this->m_adapter->CreatePolyline( this->m_curveConverter->ConvertCurve( curve ) ) } };
         }
 
         const auto shellModel = dynamic_pointer_cast<IfcShellBasedSurfaceModel>( geometricRepresentation );
@@ -176,6 +206,9 @@ private:
         if( surface ) {
             return this->ConvertSurface( surface );
         }
+
+        // TODO: Implement all
+        return {};
     }
 
     std::tuple<std::vector<TPolygon>, std::vector<TPolyline>> ConvertSurfaceModel( const std::shared_ptr<IfcFaceBasedSurfaceModel>& surfaceModel ) {
@@ -210,12 +243,17 @@ private:
         return { this->CreatePolygons( loops ), {} };
     }
 
-    std::vector<TPolygon> CreatePolygons( std::vector<std::vector<TVector>> loops ) {
+    std::vector<TPolygon> CreatePolygons( const std::vector<std::vector<TVector>>& loops ) {
         std::vector<TPolygon> result;
         for( const auto& l: loops ) {
+            if( l.size() < 3 ) {
+                // WTF????
+                // TODO: Log error
+                continue;
+            }
             const auto indices = this->m_adapter->Triangulate( l );
-            for( int i = 0; i < indices.size() - 2; i++ ) {
-                result.push_back( this->m_adapter->CreatePolygon( l, { i, i + 1, i + 2 } ) );
+            for( int i = 0; i < indices.size() - 2; i += 3 ) {
+                result.push_back( this->m_adapter->CreatePolygon( l, { indices[ i ], indices[ i + 1 ], indices[ i + 2 ] } ) );
             }
         }
         return result;

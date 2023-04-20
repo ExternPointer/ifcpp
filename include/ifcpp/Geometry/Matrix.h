@@ -88,8 +88,8 @@ public:
         this->Transform( &result );
         return result;
     }
-    void TransformLoop( std::vector<TVector>* loop ) {
-        for( auto& p: loop ) {
+    void TransformLoop( std::vector<TVector>* loop ) const {
+        for( auto& p: *loop ) {
             this->Transform( &p );
         }
     }
@@ -98,17 +98,21 @@ public:
         this->TransformLoop( &result );
         return result;
     }
-    void TransformLoops( std::vector<std::vector<TVector>>* loops ) {
-        for( auto& l: loops ) {
+    void TransformLoops( std::vector<std::vector<TVector>>* loops ) const {
+        for( auto& l: *loops ) {
             this->TransformLoop( &l );
         }
     }
-    std::vector<std::vector<TVector>> GetTransformedLoops( const std::vector<std::vector<TVector>>& loops ) {
+    std::vector<std::vector<TVector>> GetTransformedLoops( const std::vector<std::vector<TVector>>& loops ) const {
         auto result = loops;
         for( auto& l: result ) {
             this->TransformLoop( &l );
         }
         return result;
+    }
+    static Matrix<TVector> GetMultiplied( Matrix<TVector> m1, const Matrix<TVector>& m2 ) {
+        Matrix<TVector>::Multiply( &m1, m2 );
+        return m1;
     }
     static void Multiply( Matrix<TVector>* m1, const Matrix<TVector>& m2 ) {
         Matrix<TVector>& out = *m1;

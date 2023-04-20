@@ -140,7 +140,7 @@ public:
 
         for( const auto& cartesianPoints: ifc_control_points ) {
             const auto points = this->m_primitivesConverter->ConvertPoints( cartesianPoints );
-            std::back_inserter( std::begin( points ), std::end( points ), control_point_array );
+            std::copy( std::begin( points ), std::end( points ), std::back_inserter( control_point_array ) );
         }
 
         // unsigned int numPathU = 10;

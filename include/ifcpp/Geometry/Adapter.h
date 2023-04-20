@@ -114,7 +114,6 @@ public:
         if( operand1.empty() || operand2.empty() ) {
             return operand1;
         }
-        return operand1;
         return csgjscpp::modeltopolygons( csgjscpp::csgsubtract( csgjscpp::modelfrompolygons( operand1 ), csgjscpp::modelfrompolygons( operand2 ) ) );
     }
 };

@@ -75,9 +75,9 @@ public:
                         segmentPoints = this->ConvertCurve( compositeCurveSegment->m_ParentCurve );
                         // FIXME: concatenation
                         if( compositeCurveSegment->m_SameSense && !compositeCurveSegment->m_SameSense->m_value ) {
-                            std::copy( std::begin( segmentPoints ), std::end( segmentPoints ), std::back_inserter( result ) );
-                        } else {
                             std::copy( std::rbegin( segmentPoints ), std::rend( segmentPoints ), std::back_inserter( result ) );
+                        } else {
+                            std::copy( std::begin( segmentPoints ), std::end( segmentPoints ), std::back_inserter( result ) );
                         }
                     } else {
                         // TODO: Log error
@@ -245,9 +245,11 @@ public:
 
     TCurve TrimCurve( const TCurve& curve, const TVector& t1, const TVector& t2 ) {
         auto preprocessedCurve = curve;
-        std::copy( std::begin( curve ), std::end( curve ), std::back_inserter( preprocessedCurve ) );
-        auto l = this->IsPointOnCurve( curve, t1 );
-        auto r = this->IsPointOnCurve( curve, t2 );
+        if( AVector::IsNearlyEqual( preprocessedCurve[ 0 ], preprocessedCurve[ preprocessedCurve.size() - 1 ] ) ) {
+            std::copy( std::begin( curve ), std::end( curve ), std::back_inserter( preprocessedCurve ) );
+        }
+        auto l = this->GetClosestPointOnCurve( curve, t1 );
+        auto r = this->GetClosestPointOnCurve( curve, t2 );
         int lidx = -1;
         int ridx = -1;
         for( int i = 1; i < preprocessedCurve.size(); i++ ) {
@@ -317,10 +319,10 @@ private:
         if( l > r ) {
             std::swap( l, r );
         }
-        if( senseArgement ) {
-            return { l, r };
+        if( !senseArgement ) {
+            std::swap( l, r );
         }
-        return { r, l };
+        return { l, r };
     }
 
     float GetTrimmingForLine( std::vector<std::shared_ptr<IfcTrimmingSelect>> t, TVector origin, TVector dir ) {
@@ -339,7 +341,7 @@ private:
         return 0;
     }
 
-    TVector IsPointOnCurve( const TCurve& curve, const TVector& point ) {
+    TVector GetClosestPointOnCurve( const TCurve& curve, const TVector& point ) {
         TVector result = curve[ 0 ];
         float distance2 = AVector::Len2( point - result );
         for( int i = 1; i < curve.size(); i++ ) {

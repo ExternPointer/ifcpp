@@ -217,6 +217,14 @@ private:
             std::copy( face_set->m_CfsFaces.begin(), face_set->m_CfsFaces.end(), std::back_inserter( faces ) );
         }
         std::vector<std::vector<TVector>> loops = this->m_geometryConverter->ConvertFaces( faces );
+
+        // TODO: Rework (try to fix points order)
+        auto reversed = loops;
+        for( auto& l: reversed ) {
+            std::reverse( l.begin(), l.end() );
+        }
+        std::copy( std::begin( reversed ), std::end( reversed ), std::back_inserter( loops ) );
+
         return { this->CreatePolygons( loops ), {} };
     }
 

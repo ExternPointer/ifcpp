@@ -98,20 +98,24 @@ private:
             return {};
         }
 
-        const auto outer = this->m_geomUtils->SimplifyLoop( this->m_curveConverter->ConvertCurve( profile->m_OuterCurve ) );
+        const auto outer = this->m_geomUtils->SimplifyCurve( this->m_curveConverter->ConvertCurve( profile->m_OuterCurve ) );
         std::vector<TPath> holes;
 
         shared_ptr<IfcArbitraryProfileDefWithVoids> profileWithVoids = dynamic_pointer_cast<IfcArbitraryProfileDefWithVoids>( profile );
         if( profileWithVoids ) {
             for( const auto& inner: profileWithVoids->m_InnerCurves ) {
-                holes.push_back( this->m_geomUtils->SimplifyLoop( this->m_curveConverter->ConvertCurve( inner ) ) );
+                holes.push_back( this->m_geomUtils->SimplifyCurve( this->m_curveConverter->ConvertCurve( inner ) ) );
             }
         }
 
         auto hole = this->m_geomUtils->CombineLoops( holes );
         std::reverse( std::begin( hole ), std::end( hole ) );
 
-        return this->m_geomUtils->CombineLoops( { outer, hole } );
+        auto result = this->m_geomUtils->CombineLoops( { outer, hole } );
+        if( !result.empty() ) {
+            result.push_back( result[ 0 ] );
+        }
+        return result;
     }
 
     TPath ConvertArbitraryOpenProfileDef( const shared_ptr<IfcArbitraryOpenProfileDef>& profile ) {
@@ -140,7 +144,10 @@ private:
             }
             auto result = left;
             std::copy( std::rbegin( right ), std::rend( right ), std::back_inserter( result ) );
-            return this->m_geomUtils->SimplifyLoop( result );
+            if( !result.empty() ) {
+                result.push_back( result[ 0 ] );
+            }
+            return this->m_geomUtils->SimplifyCurve( result );
         }
         return this->m_geomUtils->SimplifyCurve( this->m_curveConverter->ConvertCurve( profile->m_Curve ) );
     }
@@ -150,7 +157,11 @@ private:
         for( const auto& p: profile->m_Profiles ) {
             paths.push_back( this->ConvertProfile( p ) );
         }
-        return this->m_geomUtils->CombineLoops( paths );
+        auto result = this->m_geomUtils->CombineLoops( paths );
+        if( !result.empty() ) {
+            result.push_back( result[ 0 ] );
+        }
+        return result;
     }
 
     TPath ConvertDerivedProfileDef( const shared_ptr<IfcDerivedProfileDef>& profile ) {
@@ -222,7 +233,11 @@ private:
                     inner.push_back( AVector::New( -xDim * 0.5, yDim * 0.5 ) );
                 }
                 std::reverse( std::begin( inner ), std::end( inner ) );
-                return this->m_geomUtils->CombineLoops( { outer, inner } );
+                auto result = this->m_geomUtils->CombineLoops( { outer, inner } );
+                if( !result.empty() ) {
+                    result.push_back( result[ 0 ] );
+                }
+                return result;
             }
 
             const auto rounded_rectangle = dynamic_pointer_cast<IfcRoundedRectangleProfileDef>( rectangle );
@@ -233,14 +248,15 @@ private:
                 this->AddArc( &result, radius, M_PI_2, M_PI_2, -xDim * 0.5 + radius, yDim * 0.5 - radius );
                 this->AddArc( &result, radius, M_PI, M_PI_2, -xDim * 0.5 + radius, -yDim * 0.5 + radius );
                 this->AddArc( &result, radius, 3 * M_PI_2, M_PI_2, xDim * 0.5 - radius, -yDim * 0.5 + radius );
+                if( !result.empty() ) {
+                    result.push_back( result[ 0 ] );
+                }
                 return result;
             }
 
             return {
-                AVector::New( -xDim * 0.5, -yDim * 0.5 ),
-                AVector::New( xDim * 0.5, -yDim * 0.5 ),
-                AVector::New( xDim * 0.5, yDim * 0.5 ),
-                AVector::New( -xDim * 0.5, yDim * 0.5 ),
+                AVector::New( -xDim * 0.5, -yDim * 0.5 ), AVector::New( xDim * 0.5, -yDim * 0.5 ),  AVector::New( xDim * 0.5, yDim * 0.5 ),
+                AVector::New( -xDim * 0.5, yDim * 0.5 ),  AVector::New( -xDim * 0.5, -yDim * 0.5 ),
             };
         }
 
@@ -255,6 +271,7 @@ private:
                 AVector::New( x_bottom * 0.5, -y_dim * 0.5 ),
                 AVector::New( -x_bottom * 0.5 + x_offset + x_top, y_dim * 0.5 ),
                 AVector::New( -x_bottom * 0.5 + x_offset, y_dim * 0.5 ),
+                AVector::New( -x_bottom * 0.5, -y_dim * 0.5 ),
             };
         }
 
@@ -275,7 +292,11 @@ private:
                 inner = this->m_geomUtils->BuildCircle( radius, 0.0f, M_PI * 2, this->m_parameters->m_numVerticesPerCircle );
             }
             std::reverse( std::begin( inner ), std::end( inner ) );
-            return this->m_geomUtils->CombineLoops( { outer, inner } );
+            auto result = this->m_geomUtils->CombineLoops( { outer, inner } );
+            if( !result.empty() ) {
+                result.push_back( result[ 0 ] );
+            }
+            return result;
         }
 
         const auto ellipse_profile_def = dynamic_pointer_cast<IfcEllipseProfileDef>( profile );
@@ -342,6 +363,9 @@ private:
             }
 
             this->MirrorCopyPathReverse( &result, true, false );
+            if( !result.empty() ) {
+                result.push_back( result[ 0 ] );
+            }
             return result;
         }
 
@@ -400,6 +424,9 @@ private:
             }
 
             result.push_back( AVector::New( -w * 0.5f, h * 0.5f ) );
+            if( !result.empty() ) {
+                result.push_back( result[ 0 ] );
+            }
             return result;
         }
 
@@ -442,6 +469,9 @@ private:
             }
 
             this->MirrorCopyPathReverse( &result, false, true );
+            if( !result.empty() ) {
+                result.push_back( result[ 0 ] );
+            }
             return result;
         }
 
@@ -484,6 +514,9 @@ private:
                 result.push_back( AVector::New( ( -width * 0.5f + t ), ( -h * 0.5f + t ) ) );
             }
             this->MirrorCopyPathReverse( &result, false, true );
+            if( !result.empty() ) {
+                result.push_back( result[ 0 ] );
+            }
             return result;
         }
 
@@ -520,6 +553,9 @@ private:
             }
 
             this->MirrorCopyPath( &result, true, true );
+            if( !result.empty() ) {
+                result.push_back( result[ 0 ] );
+            }
             return result;
         }
 
@@ -602,6 +638,9 @@ private:
 
             // mirror vertically along y-Axis
             this->MirrorCopyPathReverse( &result, true, false );
+            if( !result.empty() ) {
+                result.push_back( result[ 0 ] );
+            }
             return result;
         }
 

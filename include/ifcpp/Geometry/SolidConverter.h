@@ -235,6 +235,14 @@ private:
         // END_ENTITY;
 
         auto loops = this->m_geometryConverter->ConvertFaces( manifold_solid_brep->m_Outer->m_CfsFaces );
+
+        // TODO: Rework (try to fix points order)
+        auto reversed = loops;
+        for( auto& l: reversed ) {
+            std::reverse( l.begin(), l.end() );
+        }
+        std::copy( std::begin( reversed ), std::end( reversed ), std::back_inserter( loops ) );
+
         std::vector<TPolygon> result = this->CreatePolygons( loops );
 
         shared_ptr<IfcFacetedBrep> faceted_brep = dynamic_pointer_cast<IfcFacetedBrep>( manifold_solid_brep );
@@ -347,6 +355,8 @@ private:
     std::vector<TPolygon> ConvertHalfSpaceSolid( const shared_ptr<IfcHalfSpaceSolid>& half_space_solid ) {
         // ENTITY IfcHalfSpaceSolid SUPERTYPE OF(ONEOF(IfcBoxedHalfSpace, IfcPolygonalBoundedHalfSpace))
 
+        std::vector<std::vector<TVector>> resultLoops;
+
         const auto elem_base_surface = dynamic_pointer_cast<IfcElementarySurface>( half_space_solid->m_BaseSurface );
         if( !elem_base_surface ) {
             // TODO: Log error
@@ -354,11 +364,28 @@ private:
         }
 
         auto planeMatrix = this->m_primitivesConverter->ConvertPlacement( elem_base_surface->m_Position );
-        auto planeNormal = AVector::New( planeMatrix.data[ 0 ][ 2 ], planeMatrix.data[ 1 ][ 2 ], planeMatrix.data[ 2 ][ 2 ] );
+        if( half_space_solid->m_AgreementFlag && !half_space_solid->m_AgreementFlag->m_value ) {
+            planeMatrix = Matrix<TVector>::GetMultiplied( Matrix<TVector>::GetScale( 1, 1, -1 ), planeMatrix );
+        }
 
-        auto extrusion = AVector::New( 0, 0, 1 ) * this->m_parameters->m_modelMaxSize;
-        if( AVector::Dot( planeNormal, extrusion ) > 0 && half_space_solid->m_AgreementFlag && !half_space_solid->m_AgreementFlag->m_value ) {
-            extrusion = -extrusion;
+        auto boxed = std::dynamic_pointer_cast<IfcBoxedHalfSpace>( half_space_solid );
+        if( boxed ) {
+            auto x = (float)boxed->m_Enclosure->m_XDim->m_value;
+            auto y = (float)boxed->m_Enclosure->m_YDim->m_value;
+            auto z = (float)boxed->m_Enclosure->m_YDim->m_value;
+
+            const auto p = this->m_primitivesConverter->ConvertPoint( boxed->m_Enclosure->m_Corner );
+
+            std::vector<TVector> profile = {
+                AVector::New( p.x + 0, p.y + 0, p.z ),
+                AVector::New( p.x + x, p.y + 0, p.z ),
+                AVector::New( p.x + x, p.y + y, p.z ),
+                AVector::New( p.x + 0, p.y + y, p.z ),
+            };
+
+            auto loops = this->m_extruder->Extrude( profile, AVector::New( 0, 0, 1 ) * z );
+            planeMatrix.TransformLoops( &loops );
+            std::copy( loops.begin(), loops.end(), std::back_inserter( resultLoops ) );
         }
 
         const auto polygonal = std::dynamic_pointer_cast<IfcPolygonalBoundedHalfSpace>( half_space_solid );
@@ -366,9 +393,18 @@ private:
             // FIXME: Always loop?????
             auto profile = this->m_geomUtils->SimplifyLoop( this->m_curveConverter->ConvertCurve( polygonal->m_PolygonalBoundary ) );
             const auto m = this->m_primitivesConverter->ConvertPlacement( polygonal->m_Position );
+
+            auto planeNormal = AVector::New( planeMatrix.data[ 0 ][ 2 ], planeMatrix.data[ 1 ][ 2 ], planeMatrix.data[ 2 ][ 2 ] );
+            auto profileNormal = AVector::New( m.data[ 0 ][ 2 ], m.data[ 1 ][ 2 ], m.data[ 2 ][ 2 ] );
+            m.TransformLoop( &profile );
+            auto extrusion = profileNormal * this->m_parameters->m_modelMaxSize;
+            if( AVector::Dot( extrusion, planeNormal ) < 0 ) {
+                extrusion = -extrusion;
+            }
             profile = this->GetProjection( planeMatrix, profile );
             auto loops = this->m_extruder->Extrude( profile, extrusion );
-            return this->CreatePolygons( loops );
+            planeMatrix.TransformLoops( &loops );
+            std::copy( loops.begin(), loops.end(), std::back_inserter( resultLoops ) );
         }
 
         std::vector<TVector> profile = {
@@ -378,8 +414,11 @@ private:
             AVector::New( -this->m_parameters->m_modelMaxSize, this->m_parameters->m_modelMaxSize ),
         };
         profile = this->GetProjection( planeMatrix, profile );
-        auto loops = this->m_extruder->Extrude( profile, extrusion );
-        return this->CreatePolygons( loops );
+        auto loops = this->m_extruder->Extrude( profile, AVector::New( 0, 0, 1 ) * this->m_parameters->m_modelMaxSize );
+        std::copy( loops.begin(), loops.end(), std::back_inserter( resultLoops ) );
+
+
+        return this->CreatePolygons( resultLoops );
     }
 
     std::vector<TPolygon> ConvertCsgPrimitive3D( const shared_ptr<IfcCsgPrimitive3D>& csg_primitive ) {

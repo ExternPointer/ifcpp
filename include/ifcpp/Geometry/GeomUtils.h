@@ -186,6 +186,50 @@ public:
         // TODO: Check order, remove duplicates, etc...
         std::copy( std::begin( toAppend ), std::end( toAppend ), std::back_inserter( *loop ) );
     }
+    std::vector<std::vector<TVector>> BringToFrontOuterLoop( const std::vector<std::vector<TVector>>& loops ) {
+        if( loops.empty() ) {
+            return {};
+        }
+        float maxSize = 0;
+        int maxSizeIdx = 0;
+        for( int i = 0; i < loops.size(); i++ ) {
+            const auto& loop = loops[ i ];
+            if( loop.empty() ) {
+                continue;
+            }
+            float minx = loop[ 0 ].x;
+            float maxx = loop[ 0 ].x;
+            float miny = loop[ 0 ].y;
+            float maxy = loop[ 0 ].y;
+            float minz = loop[ 0 ].z;
+            float maxz = loop[ 0 ].z;
+
+            for( const auto& v: loop ) {
+                minx = std::min( minx, v.x );
+                maxx = std::max( maxx, v.x );
+                miny = std::min( miny, v.y );
+                maxy = std::max( maxy, v.y );
+                minz = std::min( minz, v.z );
+                maxz = std::max( maxz, v.z );
+
+                float dx = fabsf( maxx - minx );
+                float dy = fabsf( maxy - miny );
+                float dz = fabsf( maxz - minz );
+
+                float maxd = std::max( std::max( dx, dy ), dz );
+
+                if( maxd > maxSize ) {
+                    maxSize = maxd;
+                    maxSizeIdx = i;
+                }
+            }
+        }
+        auto result = loops;
+        if( maxSizeIdx != 0 ) {
+            std::swap( result[ 0 ], result[ maxSizeIdx ] );
+        }
+        return result;
+    }
     std::vector<TVector> CombineLoops( std::vector<std::vector<TVector>> loops ) {
         while( !loops.empty() && loops[ 0 ].empty() ) {
             loops.erase( std::begin( loops ) );
@@ -322,6 +366,7 @@ public:
         // FIXME
         if( pointsOnPlane.size() < 3 ) {
             // TODO: Log error
+            return AVector::New();
         }
         TVector result = AVector::New();
         for( int i = 1; i < pointsOnPlane.size() - 1; i++ ) {

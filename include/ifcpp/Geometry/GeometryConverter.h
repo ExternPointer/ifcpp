@@ -40,7 +40,6 @@ class GeometryConverter {
     using TLoop = std::vector<TVector>;
     using TEdge = std::vector<TVector>;
     using AVector = VectorAdapter<TVector>;
-    using TMatrix = Matrix<TVector>;
 
     std::shared_ptr<PrimitivesConverter<TVector>> m_primitivesConverter;
     std::shared_ptr<CurveConverter<TVector>> m_curveConverter;
@@ -132,26 +131,22 @@ public:
         TLoop outer;
         std::vector<TLoop> inners;
 
-        if( face->m_Bounds.size() == 1 ) {
-            auto loop = this->ConvertLoop( face->m_Bounds[ 0 ]->m_Bound );
-            if( face->m_Bounds[ 0 ]->m_Orientation && !face->m_Bounds[ 0 ]->m_Orientation->m_value ) {
+        std::vector<TLoop> loops;
+        for( const auto& bound: face->m_Bounds ) {
+            auto loop = this->ConvertLoop( bound->m_Bound );
+            if( bound->m_Orientation && !bound->m_Orientation->m_value ) {
                 std::reverse( loop.begin(), loop.end() );
             }
-            outer = loop;
-        } else {
-
-            for( const auto& bound: face->m_Bounds ) {
-                auto loop = this->ConvertLoop( bound->m_Bound );
-                if( bound->m_Orientation && !bound->m_Orientation->m_value ) {
-                    std::reverse( loop.begin(), loop.end() );
-                }
-                if( std::dynamic_pointer_cast<IfcFaceOuterBound>( bound ) ) {
-                    outer = loop;
-                } else {
-                    inners.push_back( loop );
-                }
-            }
+            loops.push_back( loop );
         }
+        loops = this->m_geomUtils->BringToFrontOuterLoop( loops );
+        if( loops.empty() ) {
+            return {};
+        }
+
+        outer = loops[0];
+        std::copy( std::begin( loops ) + 1, std::end( loops ), std::back_inserter( inners ) );
+
         auto inner = this->m_geomUtils->CombineLoops( inners );
         std::reverse( std::begin( inner ), std::end( inner ) );
         return this->m_geomUtils->CombineLoops( { outer, inner } );

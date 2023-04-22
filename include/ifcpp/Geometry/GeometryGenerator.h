@@ -80,6 +80,37 @@ public:
     }
 
     std::vector<TEntity> GenerateGeometry() {
+
+//        std::vector<TVector> outer = {
+//            VectorAdapter<TVector>::New( 0, 0 ),
+//            VectorAdapter<TVector>::New( 5, 0 ),
+//            VectorAdapter<TVector>::New( 5, 3 ),
+//            VectorAdapter<TVector>::New( 0, 3 ),
+//        };
+//
+//        std::vector<std::vector<TVector>> inners = {
+//            {
+//                VectorAdapter<TVector>::New( 1, 1 ),
+//                VectorAdapter<TVector>::New( 2, 1 ),
+//                VectorAdapter<TVector>::New( 2, 2 ),
+//                VectorAdapter<TVector>::New( 1, 2 ),
+//            },
+//            {
+//                VectorAdapter<TVector>::New( 3, 1 ),
+//                VectorAdapter<TVector>::New( 4, 1 ),
+//                VectorAdapter<TVector>::New( 4, 2 ),
+//                VectorAdapter<TVector>::New( 3, 2 ),
+//            },
+//        };
+//
+//        auto inner = this->m_geomUtils->CombineLoops( inners );
+//        std::reverse( inner.begin(), inner.end() );
+//        outer = this->m_geomUtils->CombineLoops( { outer, inner} );
+//
+//        auto loops = this->m_extruder->Extrude( outer, VectorAdapter<TVector>::New( 0, 0, 1) );
+//
+//        return { this->m_adapter->CreateEntity( {}, this->CreatePolygons( loops ), {} ) };
+
         std::vector<TEntity> entities;
         for( const auto& idEntityPair: this->m_ifcModel->getMapIfcEntities() ) {
             auto object = dynamic_pointer_cast<IfcObjectDefinition>( idEntityPair.second );
@@ -157,7 +188,8 @@ private:
                             }
                         }
                     }
-                    auto placement = TMatrix::GetScale( this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor );
+                    auto placement =
+                        TMatrix::GetScale( this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor );
                     TMatrix::Multiply( &placement, this->m_primitivesConverter->ConvertPlacement( opening->m_ObjectPlacement ) );
                     this->m_adapter->Transform( &polygons, placement );
                     std::copy( polygons.begin(), polygons.end(), std::back_inserter( resultPolygons ) );

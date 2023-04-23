@@ -113,6 +113,7 @@ public:
         const auto operand1 = this->ConvertBooleanOperand( ifc_first_operand );
         const auto operand2 = this->ConvertBooleanOperand( ifc_second_operand );
 
+        // TODO: Rework IfcBooleanClippingResult (and IfcHalfSpaceSolid)
 //        shared_ptr<IfcBooleanClippingResult> boolean_clipping_result = dynamic_pointer_cast<IfcBooleanClippingResult>( bool_result );
 //        if( boolean_clipping_result ) {
 //            return operand2;
@@ -395,23 +396,34 @@ private:
 
         const auto polygonal = std::dynamic_pointer_cast<IfcPolygonalBoundedHalfSpace>( half_space_solid );
         if( polygonal ) {
-            // FIXME: Always loop?????
             auto profile = this->m_geomUtils->SimplifyLoop( this->m_curveConverter->ConvertCurve( polygonal->m_PolygonalBoundary ) );
             const auto m = this->m_primitivesConverter->ConvertPlacement( polygonal->m_Position );
 
-            auto planeNormal = AVector::New( planeMatrix.data[ 0 ][ 2 ], planeMatrix.data[ 1 ][ 2 ], planeMatrix.data[ 2 ][ 2 ] );
-            auto profileNormal = AVector::New( m.data[ 0 ][ 2 ], m.data[ 1 ][ 2 ], m.data[ 2 ][ 2 ] );
-
-            m.TransformLoop( &profile );
-            auto extrusion = profileNormal * this->m_parameters->m_modelMaxSize;
-            if( AVector::Dot( profileNormal, planeNormal ) < 0 ) {
-                extrusion = -extrusion;
+            for( auto& p: profile ) {
+                p.z = -this->m_parameters->m_modelMaxSize * 0.5f;
             }
-            profile = this->GetProjection( planeMatrix, profile );
-            auto loops = this->m_extruder->Extrude( profile, extrusion );
 
-            std::copy( loops.begin(), loops.end(), std::back_inserter( resultLoops ) );
-            return this->CreatePolygons( resultLoops );
+            auto loops = this->m_extruder->Extrude( profile, AVector::New( 0, 0, 1 ) * this->m_parameters->m_modelMaxSize );
+            m.TransformLoops( &loops );
+            const auto polygons = this->CreatePolygons( loops );
+
+            std::vector<TVector> rect = {
+                AVector::New( -this->m_parameters->m_modelMaxSize, -this->m_parameters->m_modelMaxSize ),
+                AVector::New( this->m_parameters->m_modelMaxSize, -this->m_parameters->m_modelMaxSize ),
+                AVector::New( this->m_parameters->m_modelMaxSize, this->m_parameters->m_modelMaxSize ),
+                AVector::New( -this->m_parameters->m_modelMaxSize, this->m_parameters->m_modelMaxSize ),
+            };
+            auto rectLoops = this->m_extruder->Extrude( rect, AVector::New( 0, 0, 1 ) * this->m_parameters->m_modelMaxSize );
+            planeMatrix.TransformLoops( &rectLoops );
+            if( !half_space_solid->m_AgreementFlag || half_space_solid->m_AgreementFlag->m_value ) {
+                for( auto& l: rectLoops ) {
+                    std::reverse( l.begin(), l.end() );
+                }
+            }
+
+            const auto rectPolygons = this->CreatePolygons( rectLoops );
+
+            return this->m_adapter->ComputeIntersection( rectPolygons, polygons );
         }
 
         std::vector<TVector> profile = {

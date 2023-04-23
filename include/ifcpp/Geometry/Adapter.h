@@ -183,12 +183,10 @@ public:
         return csgjscpp::modeltopolygons( csgjscpp::csgintersection( csgjscpp::modelfrompolygons( operand1 ), csgjscpp::modelfrompolygons( operand2 ) ) );
     }
 
-    inline std::vector<TPolygon> ComputeDifference( const std::vector<TPolygon>& operand1, std::vector<TPolygon> operand2 ) {
+    inline std::vector<TPolygon> ComputeDifference( const std::vector<TPolygon>& operand1, const std::vector<TPolygon>& operand2 ) {
         if( operand1.empty() || operand2.empty() ) {
             return operand1;
         }
-        //return operand2;
-        //operand2 = this->ComputeIntersection( operand1, operand2 );
         return csgjscpp::modeltopolygons( csgjscpp::csgsubtract( csgjscpp::modelfrompolygons( operand1 ), csgjscpp::modelfrompolygons( operand2 ) ) );
     }
 };

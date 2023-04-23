@@ -127,38 +127,38 @@ public:
         // FIXME: Problems on loops with holes
         return loop;
 
-//        std::vector<TVector> result;
-//        result.reserve( loop.size() );
-//        if( loop.empty() ) {
-//            return result;
-//        }
-//        result.push_back( loop[ 0 ] );
-//        for( const auto& point: loop ) {
-//            if( !AVector::IsNearlyEqual( point, result[ result.size() - 1 ] ) ) {
-//                result.push_back( point );
-//            }
-//        }
-//        if( result.size() > 2 && AVector::IsNearlyEqual( result[ 0 ], result[ result.size() - 1 ] ) ) {
-//            result.pop_back();
-//        }
-//
-//        if( result.size() < 3 ) {
-//            return result;
-//        }
-//        result.push_back( result[ 0 ] );
-//        result.insert( std::begin( result ), result[ result.size() - 2 ] );
-//        for( int i = 1; i < result.size() - 1; i++ ) {
-//            const auto a = result[ i - 1 ] - result[ i ];
-//            const auto b = result[ i + 1 ] - result[ i ];
-//            const auto c = AVector::Cross( a, b );
-//            if( AVector::Len2( c ) < this->m_parameters->m_epsilon ) {
-//                result.erase( std::begin( result ) + i );
-//                i--;
-//            }
-//        }
-//        result.erase( std::begin( result ) );
-//        result.pop_back();
-//        return result;
+        //        std::vector<TVector> result;
+        //        result.reserve( loop.size() );
+        //        if( loop.empty() ) {
+        //            return result;
+        //        }
+        //        result.push_back( loop[ 0 ] );
+        //        for( const auto& point: loop ) {
+        //            if( !AVector::IsNearlyEqual( point, result[ result.size() - 1 ] ) ) {
+        //                result.push_back( point );
+        //            }
+        //        }
+        //        if( result.size() > 2 && AVector::IsNearlyEqual( result[ 0 ], result[ result.size() - 1 ] ) ) {
+        //            result.pop_back();
+        //        }
+        //
+        //        if( result.size() < 3 ) {
+        //            return result;
+        //        }
+        //        result.push_back( result[ 0 ] );
+        //        result.insert( std::begin( result ), result[ result.size() - 2 ] );
+        //        for( int i = 1; i < result.size() - 1; i++ ) {
+        //            const auto a = result[ i - 1 ] - result[ i ];
+        //            const auto b = result[ i + 1 ] - result[ i ];
+        //            const auto c = AVector::Cross( a, b );
+        //            if( AVector::Len2( c ) < this->m_parameters->m_epsilon ) {
+        //                result.erase( std::begin( result ) + i );
+        //                i--;
+        //            }
+        //        }
+        //        result.erase( std::begin( result ) );
+        //        result.pop_back();
+        //        return result;
     }
     std::vector<TVector> SimplifyCurve( const std::vector<TVector>& loop ) {
         std::vector<TVector> result;
@@ -273,7 +273,8 @@ public:
                         for( int i = 1; i < result.size(); i++ ) {
                             const auto intersection = this->Intersect( result[ i - 1 ], result[ i ], p1, p2 );
 
-                            if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) || AVector::IsNearlyEqual( intersection.left, p2 ) ) {
+                            if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) ||
+                                AVector::IsNearlyEqual( intersection.left, p2 ) ) {
                                 continue;
                             }
                             if( intersection.isIntersects ) {
@@ -283,10 +284,11 @@ public:
                         for( int j = 0; j < loops.size(); j++ ) {
                             for( int i = 1; i < result.size(); i++ ) {
                                 const auto intersection = this->Intersect( loops[ j ][ i - 1 ], loops[ j ][ i ], p1, p2 );
-                                if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) || AVector::IsNearlyEqual( intersection.left, p2 ) ) {
+                                if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) ||
+                                    AVector::IsNearlyEqual( intersection.left, p2 ) ) {
                                     continue;
                                 }
-                                if( intersection.isIntersects  ) {
+                                if( intersection.isIntersects ) {
                                     isIntersects = true;
                                 }
                             }
@@ -295,7 +297,7 @@ public:
                             continue;
                         }
 
-                        //const auto d2 = AVector::Len2( p2 - p1 );
+                        // const auto d2 = AVector::Len2( p2 - p1 );
                         if( d2 < dist2 ) {
                             dist2 = d2;
                             inResultIdx = ridx;
@@ -392,6 +394,16 @@ public:
             result = result - AVector::Cross( pointsOnPlane[ i - 1 ] - pointsOnPlane[ i ], pointsOnPlane[ i + 1 ] - pointsOnPlane[ i ] );
         }
         return AVector::Normalized( result );
+    }
+
+    float NormalizeAngle( float angle ) {
+        while( angle > M_PI * 2 ) {
+            angle -= M_PI * 2;
+        }
+        while( angle < -M_PI * 2 ) {
+            angle += M_PI * 2;
+        }
+        return angle;
     }
 };
 

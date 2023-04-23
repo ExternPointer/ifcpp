@@ -27,6 +27,9 @@ public:
     }
 
     std::vector<TLoop> Extrude( TLoop profile, TVector extrusion, bool asClosed = true ) {
+        if( profile.empty() ) {
+            return {};
+        }
         // TODO: It is not important to simplify profile here
         if( asClosed ) {
             profile = this->m_geomUtils->SimplifyLoop( profile );
@@ -62,6 +65,9 @@ public:
         return result;
     }
     std::vector<TLoop> Sweep( TLoop profile, const std::vector<TVector>& sweepPoints, bool asClosed = true ) {
+        if( profile.empty() ) {
+            return {};
+        }
         // TODO: It is not important to simplify profile here
         if( asClosed ) {
             profile = this->m_geomUtils->SimplifyLoop( profile );
@@ -117,6 +123,9 @@ public:
         return result;
     }
     std::vector<TLoop> Revolve( TLoop profile, const TVector& axisLocation, const TVector& axisDirection, float revolveAngle, bool asClosed = true ) {
+        if( profile.empty() ) {
+            return {};
+        }
         // TODO: It is not important to simplify profile here
         if( asClosed ) {
             profile = this->m_geomUtils->SimplifyLoop( profile );

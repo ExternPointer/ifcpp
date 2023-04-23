@@ -234,6 +234,10 @@ public:
     TMatrix ConvertTransformationOperator( const shared_ptr<IfcCartesianTransformationOperator>& transformationOperator ) {
         // ENTITY IfcCartesianTransformationOperator ABSTRACT SUPERTYPE OF(ONEOF(IfcCartesianTransformationOperator2D, IfcCartesianTransformationOperator3D))
 
+        if( !transformationOperator ) {
+            return TMatrix::GetIdentity();
+        }
+
         auto translate = AVector::New( 0.0f, 0.0f, 0.0f );
         auto local_x = AVector::New( 1.0f, 0.0f, 0.0f );
         auto local_y = AVector::New( 0.0f, 1.0f, 0.0f );

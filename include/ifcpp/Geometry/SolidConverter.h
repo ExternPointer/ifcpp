@@ -664,6 +664,9 @@ private:
                 continue;
             }
             const auto indices = this->m_adapter->Triangulate( l );
+            if( indices.size() < 3) {
+                continue;
+            }
             for( int i = 0; i < indices.size() - 2; i += 3 ) {
                 result.push_back( this->m_adapter->CreatePolygon( l, { indices[ i ], indices[ i + 1 ], indices[ i + 2 ] } ) );
             }

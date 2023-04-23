@@ -30,6 +30,8 @@
 #include "ifcpp/Ifc/IfcRepresentation.h"
 #include "ifcpp/Ifc/IfcShellBasedSurfaceModel.h"
 #include "ifcpp/Ifc/IfcSpace.h"
+#include "ifcpp/Ifc/IfcMappedItem.h"
+#include "ifcpp/Ifc/IfcRepresentationMap.h"
 
 
 namespace ifcpp {
@@ -81,35 +83,35 @@ public:
 
     std::vector<TEntity> GenerateGeometry() {
 
-//        std::vector<TVector> outer = {
-//            VectorAdapter<TVector>::New( 0, 0 ),
-//            VectorAdapter<TVector>::New( 5, 0 ),
-//            VectorAdapter<TVector>::New( 5, 3 ),
-//            VectorAdapter<TVector>::New( 0, 3 ),
-//        };
-//
-//        std::vector<std::vector<TVector>> inners = {
-//            {
-//                VectorAdapter<TVector>::New( 1, 1 ),
-//                VectorAdapter<TVector>::New( 2, 1 ),
-//                VectorAdapter<TVector>::New( 2, 2 ),
-//                VectorAdapter<TVector>::New( 1, 2 ),
-//            },
-//            {
-//                VectorAdapter<TVector>::New( 3, 1 ),
-//                VectorAdapter<TVector>::New( 4, 1 ),
-//                VectorAdapter<TVector>::New( 4, 2 ),
-//                VectorAdapter<TVector>::New( 3, 2 ),
-//            },
-//        };
-//
-//        auto inner = this->m_geomUtils->CombineLoops( inners );
-//        std::reverse( inner.begin(), inner.end() );
-//        outer = this->m_geomUtils->CombineLoops( { outer, inner} );
-//
-//        auto loops = this->m_extruder->Extrude( outer, VectorAdapter<TVector>::New( 0, 0, 1) );
-//
-//        return { this->m_adapter->CreateEntity( {}, this->CreatePolygons( loops ), {} ) };
+        //        std::vector<TVector> outer = {
+        //            VectorAdapter<TVector>::New( 0, 0 ),
+        //            VectorAdapter<TVector>::New( 5, 0 ),
+        //            VectorAdapter<TVector>::New( 5, 3 ),
+        //            VectorAdapter<TVector>::New( 0, 3 ),
+        //        };
+        //
+        //        std::vector<std::vector<TVector>> inners = {
+        //            {
+        //                VectorAdapter<TVector>::New( 1, 1 ),
+        //                VectorAdapter<TVector>::New( 2, 1 ),
+        //                VectorAdapter<TVector>::New( 2, 2 ),
+        //                VectorAdapter<TVector>::New( 1, 2 ),
+        //            },
+        //            {
+        //                VectorAdapter<TVector>::New( 3, 1 ),
+        //                VectorAdapter<TVector>::New( 4, 1 ),
+        //                VectorAdapter<TVector>::New( 4, 2 ),
+        //                VectorAdapter<TVector>::New( 3, 2 ),
+        //            },
+        //        };
+        //
+        //        auto inner = this->m_geomUtils->CombineLoops( inners );
+        //        std::reverse( inner.begin(), inner.end() );
+        //        outer = this->m_geomUtils->CombineLoops( { outer, inner} );
+        //
+        //        auto loops = this->m_extruder->Extrude( outer, VectorAdapter<TVector>::New( 0, 0, 1) );
+        //
+        //        return { this->m_adapter->CreateEntity( {}, this->CreatePolygons( loops ), {} ) };
 
         std::vector<TEntity> entities;
         for( const auto& idEntityPair: this->m_ifcModel->getMapIfcEntities() ) {
@@ -130,39 +132,71 @@ public:
 
 private:
     TEntity GenerateGeometryFromObject( const std::shared_ptr<IFC4X3::IfcObjectDefinition>& object ) {
-        std::vector<TPolygon> resultPolygons;
-        std::vector<TPolyline> resultPolylines;
         const auto product = dynamic_pointer_cast<IfcProduct>( object );
-        if( !product ) {
-            return this->m_adapter->CreateEntity( object, {}, {} );
-        }
-        const auto& productRepresentation = product->m_Representation;
-        if( !productRepresentation ) {
+        if( !product || !product->m_Representation ) {
             return this->m_adapter->CreateEntity( object, {}, {} );
         }
 
-        for( const auto& representation: productRepresentation->m_Representations ) {
-            for( const auto& item: representation->m_Items ) {
-                // ENTITY IfcRepresentationItem  ABSTRACT SUPERTYPE OF(ONEOF(IfcGeometricRepresentationItem,
-                // IfcMappedItem, IfcStyledItem, IfcTopologicalRepresentationItem));
-                const auto geometric = dynamic_pointer_cast<IfcGeometricRepresentationItem>( item );
-                if( geometric ) {
-                    auto [ polygons, polylines ] = ConvertGeometryRepresentation( geometric );
-                    std::copy( polygons.begin(), polygons.end(), std::back_inserter( resultPolygons ) );
-                    std::copy( polylines.begin(), polylines.end(), std::back_inserter( resultPolylines ) );
-                }
-            }
+        std::vector<TPolygon> polygons;
+        std::vector<TPolyline> polylines;
+        for( const auto& item: product->m_Representation->m_Representations ) {
+            const auto [ p, l ] = this->ConvertRepresentation( item );
+            std::copy( p.begin(), p.end(), std::back_inserter( polygons ) );
+            std::copy( l.begin(), l.end(), std::back_inserter( polylines ) );
         }
 
         auto matrix = TMatrix::GetScale( this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor );
         TMatrix::Multiply( &matrix, this->m_primitivesConverter->ConvertPlacement( product->m_ObjectPlacement ) );
-        this->m_adapter->Transform( &resultPolygons, matrix );
-        this->m_adapter->Transform( &resultPolylines, matrix );
+        this->m_adapter->Transform( &polygons, matrix );
+        this->m_adapter->Transform( &polylines, matrix );
 
         const auto opening = this->ConvertRelatedOpening( object );
-        resultPolygons = this->m_adapter->ComputeDifference( resultPolygons, opening );
+        polygons = this->m_adapter->ComputeDifference( polygons, opening );
 
-        return this->m_adapter->CreateEntity( object, resultPolygons, resultPolylines );
+        return this->m_adapter->CreateEntity( object, polygons, polylines );
+    }
+
+    std::tuple<std::vector<TPolygon>, std::vector<TPolyline>> ConvertRepresentation( const std::shared_ptr<IfcRepresentation>& representation ) {
+        std::vector<TPolygon> polygons;
+        std::vector<TPolyline> polylines;
+
+        for( const auto& item: representation->m_Items ) {
+            // ENTITY IfcRepresentationItem  ABSTRACT SUPERTYPE OF(ONEOF(IfcGeometricRepresentationItem,
+            // IfcMappedItem, IfcStyledItem, IfcTopologicalRepresentationItem));
+            const auto geometric = dynamic_pointer_cast<IfcGeometricRepresentationItem>( item );
+            if( geometric ) {
+                auto [ p, l ] = this->ConvertGeometryRepresentation( geometric );
+                std::copy( p.begin(), p.end(), std::back_inserter( polygons ) );
+                std::copy( l.begin(), l.end(), std::back_inserter( polylines ) );
+            }
+
+            const auto mappedItem = dynamic_pointer_cast<IfcMappedItem>( item );
+            if( mappedItem ) {
+                auto [ p, l ] = this->ConvertMappedItem( mappedItem );
+                std::copy( p.begin(), p.end(), std::back_inserter( polygons ) );
+                std::copy( l.begin(), l.end(), std::back_inserter( polylines ) );
+            }
+        }
+
+        return { polygons, polylines };
+    }
+
+    std::tuple<std::vector<TPolygon>, std::vector<TPolyline>> ConvertMappedItem( const std::shared_ptr<IfcMappedItem>& mappedItem ) {
+        if( !mappedItem->m_MappingSource || !mappedItem->m_MappingSource->m_MappedRepresentation ) {
+            // TODO: Log error
+            return {};
+        }
+        const auto transformation = this->m_primitivesConverter->ConvertTransformationOperator( mappedItem->m_MappingTarget );
+        const auto origin = this->m_primitivesConverter->ConvertPlacement( mappedItem->m_MappingSource->m_MappingOrigin );
+        const auto m = TMatrix::GetMultiplied( transformation, origin );
+
+        auto [ polygons, polylines ] = this->ConvertRepresentation( mappedItem->m_MappingSource->m_MappedRepresentation );
+        // TODO: Material
+
+        this->m_adapter->Transform( &polygons, m );
+        this->m_adapter->Transform( &polylines, m );
+
+        return { polygons, polylines };
     }
 
     std::vector<TPolygon> ConvertRelatedOpening( const std::shared_ptr<IFC4X3::IfcObjectDefinition>& object ) {
@@ -178,20 +212,12 @@ private:
                         continue;
                     }
                     for( const auto& representation: opening->m_Representation->m_Representations ) {
-                        for( const auto& item: representation->m_Items ) {
-                            // ENTITY IfcRepresentationItem  ABSTRACT SUPERTYPE OF(ONEOF(IfcGeometricRepresentationItem,
-                            // IfcMappedItem, IfcStyledItem, IfcTopologicalRepresentationItem));
-                            const auto geometric = dynamic_pointer_cast<IfcGeometricRepresentationItem>( item );
-                            if( geometric ) {
-                                auto [ p, l ] = ConvertGeometryRepresentation( geometric );
-                                std::copy( p.begin(), p.end(), std::back_inserter( polygons ) );
-                            }
-                        }
+                        auto [ p, l ] = this->ConvertRepresentation( representation );
+                        std::copy( p.begin(), p.end(), std::back_inserter( polygons ) );
                     }
-                    auto placement =
-                        TMatrix::GetScale( this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor );
-                    TMatrix::Multiply( &placement, this->m_primitivesConverter->ConvertPlacement( opening->m_ObjectPlacement ) );
-                    this->m_adapter->Transform( &polygons, placement );
+                    auto m = TMatrix::GetScale( this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor );
+                    TMatrix::Multiply( &m, this->m_primitivesConverter->ConvertPlacement( opening->m_ObjectPlacement ) );
+                    this->m_adapter->Transform( &polygons, m );
                     std::copy( polygons.begin(), polygons.end(), std::back_inserter( resultPolygons ) );
                 }
             }
@@ -275,11 +301,27 @@ private:
             }
         }
         std::vector<std::vector<TVector>> loops = this->m_geometryConverter->ConvertFaces( faces );
+
+        // TODO: Rework (try to fix points order)
+        auto reversed = loops;
+        for( auto& l: reversed ) {
+            std::reverse( l.begin(), l.end() );
+        }
+        std::copy( std::begin( reversed ), std::end( reversed ), std::back_inserter( loops ) );
+
         return { this->CreatePolygons( loops ), {} };
     }
 
     std::tuple<std::vector<TPolygon>, std::vector<TPolyline>> ConvertSurface( const std::shared_ptr<IfcSurface>& surface ) {
-        const auto loops = this->m_geometryConverter->ConvertSurface( surface );
+        auto loops = this->m_geometryConverter->ConvertSurface( surface );
+
+        // TODO: Rework (try to fix points order)
+        auto reversed = loops;
+        for( auto& l: reversed ) {
+            std::reverse( l.begin(), l.end() );
+        }
+        std::copy( std::begin( reversed ), std::end( reversed ), std::back_inserter( loops ) );
+
         return { this->CreatePolygons( loops ), {} };
     }
 
@@ -292,6 +334,9 @@ private:
                 continue;
             }
             const auto indices = this->m_adapter->Triangulate( l );
+            if( indices.size() < 3) {
+                continue;
+            }
             for( int i = 0; i < indices.size() - 2; i += 3 ) {
                 result.push_back( this->m_adapter->CreatePolygon( l, { indices[ i ], indices[ i + 1 ], indices[ i + 2 ] } ) );
             }

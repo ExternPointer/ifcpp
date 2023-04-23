@@ -113,6 +113,11 @@ public:
         const auto operand1 = this->ConvertBooleanOperand( ifc_first_operand );
         const auto operand2 = this->ConvertBooleanOperand( ifc_second_operand );
 
+//        shared_ptr<IfcBooleanClippingResult> boolean_clipping_result = dynamic_pointer_cast<IfcBooleanClippingResult>( bool_result );
+//        if( boolean_clipping_result ) {
+//            return operand2;
+//        }
+
         switch( ifc_boolean_operator->m_enum ) {
         case IfcBooleanOperator::ENUM_UNION:
             return this->m_adapter->ComputeUnion( operand1, operand2 );
@@ -364,28 +369,28 @@ private:
         }
 
         auto planeMatrix = this->m_primitivesConverter->ConvertPlacement( elem_base_surface->m_Position );
-        if( half_space_solid->m_AgreementFlag && !half_space_solid->m_AgreementFlag->m_value ) {
+        if( !half_space_solid->m_AgreementFlag || half_space_solid->m_AgreementFlag->m_value ) {
             planeMatrix = Matrix<TVector>::GetMultiplied( Matrix<TVector>::GetScale( 1, 1, -1 ), planeMatrix );
         }
 
         auto boxed = std::dynamic_pointer_cast<IfcBoxedHalfSpace>( half_space_solid );
         if( boxed ) {
-            auto x = (float)boxed->m_Enclosure->m_XDim->m_value;
-            auto y = (float)boxed->m_Enclosure->m_YDim->m_value;
-            auto z = (float)boxed->m_Enclosure->m_YDim->m_value;
-
-            const auto p = this->m_primitivesConverter->ConvertPoint( boxed->m_Enclosure->m_Corner );
-
-            std::vector<TVector> profile = {
-                AVector::New( p.x + 0, p.y + 0, p.z ),
-                AVector::New( p.x + x, p.y + 0, p.z ),
-                AVector::New( p.x + x, p.y + y, p.z ),
-                AVector::New( p.x + 0, p.y + y, p.z ),
-            };
-
-            auto loops = this->m_extruder->Extrude( profile, AVector::New( 0, 0, 1 ) * z );
-            planeMatrix.TransformLoops( &loops );
-            std::copy( loops.begin(), loops.end(), std::back_inserter( resultLoops ) );
+//            auto x = (float)boxed->m_Enclosure->m_XDim->m_value;
+//            auto y = (float)boxed->m_Enclosure->m_YDim->m_value;
+//            auto z = (float)boxed->m_Enclosure->m_YDim->m_value;
+//
+//            const auto p = this->m_primitivesConverter->ConvertPoint( boxed->m_Enclosure->m_Corner );
+//
+//            std::vector<TVector> profile = {
+//                AVector::New( p.x + 0, p.y + 0, p.z ),
+//                AVector::New( p.x + x, p.y + 0, p.z ),
+//                AVector::New( p.x + x, p.y + y, p.z ),
+//                AVector::New( p.x + 0, p.y + y, p.z ),
+//            };
+//
+//            auto loops = this->m_extruder->Extrude( profile, AVector::New( 0, 0, 1 ) * z );
+//            planeMatrix.TransformLoops( &loops );
+//            std::copy( loops.begin(), loops.end(), std::back_inserter( resultLoops ) );
         }
 
         const auto polygonal = std::dynamic_pointer_cast<IfcPolygonalBoundedHalfSpace>( half_space_solid );
@@ -396,15 +401,17 @@ private:
 
             auto planeNormal = AVector::New( planeMatrix.data[ 0 ][ 2 ], planeMatrix.data[ 1 ][ 2 ], planeMatrix.data[ 2 ][ 2 ] );
             auto profileNormal = AVector::New( m.data[ 0 ][ 2 ], m.data[ 1 ][ 2 ], m.data[ 2 ][ 2 ] );
+
             m.TransformLoop( &profile );
             auto extrusion = profileNormal * this->m_parameters->m_modelMaxSize;
-            if( AVector::Dot( extrusion, planeNormal ) < 0 ) {
+            if( AVector::Dot( profileNormal, planeNormal ) < 0 ) {
                 extrusion = -extrusion;
             }
             profile = this->GetProjection( planeMatrix, profile );
             auto loops = this->m_extruder->Extrude( profile, extrusion );
-            planeMatrix.TransformLoops( &loops );
+
             std::copy( loops.begin(), loops.end(), std::back_inserter( resultLoops ) );
+            return this->CreatePolygons( resultLoops );
         }
 
         std::vector<TVector> profile = {
@@ -413,8 +420,16 @@ private:
             AVector::New( this->m_parameters->m_modelMaxSize, this->m_parameters->m_modelMaxSize ),
             AVector::New( -this->m_parameters->m_modelMaxSize, this->m_parameters->m_modelMaxSize ),
         };
-        profile = this->GetProjection( planeMatrix, profile );
         auto loops = this->m_extruder->Extrude( profile, AVector::New( 0, 0, 1 ) * this->m_parameters->m_modelMaxSize );
+
+        planeMatrix.TransformLoops( &loops );
+
+        if( !half_space_solid->m_AgreementFlag || half_space_solid->m_AgreementFlag->m_value ) {
+            for( auto& l: loops ) {
+                std::reverse( l.begin(), l.end() );
+            }
+        }
+
         std::copy( loops.begin(), loops.end(), std::back_inserter( resultLoops ) );
 
 

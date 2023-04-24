@@ -3,12 +3,14 @@
 #include <memory>
 #include <vector>
 
-#include "ifcpp/Geometry/CAdapter.h"
+#include "ifcpp/Geometry/VectorAdapter.h"
+#include "ifcpp/Geometry/CVector.h"
 
 namespace ifcpp {
 
 template<CVector TVector>
 class Matrix {
+    using AVector = VectorAdapter<TVector>;
 public:
     float data[ 4 ][ 4 ];
     static Matrix<TVector> GetIdentity() {
@@ -58,7 +60,7 @@ public:
         auto a = angle;
         auto c = cosf( a );
         auto s = sinf( a );
-        auto axis = csgjscpp::unit( v );
+        auto axis = AVector::Normalized( v );
 
         result.data[ 0 ][ 0 ] = c + ( 1.0f - c ) * axis.x * axis.x;
         result.data[ 0 ][ 1 ] = ( 1.0f - c ) * axis.x * axis.y + s * axis.z;

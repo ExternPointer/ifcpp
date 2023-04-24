@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-#include "ifcpp/Geometry/CAdapter.h"
+#include "ifcpp/Geometry/CVector.h"
 
 
 namespace ifcpp {

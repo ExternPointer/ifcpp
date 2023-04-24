@@ -1,72 +1,55 @@
-CMAKE_MINIMUM_REQUIRED (VERSION 3.6)
-project(IfcPlusPlus)
+cmake_minimum_required( VERSION 3.20 )
+project( ifcpp )
 
-# Set a default build type if none was specified https://blog.kitware.com/cmake-and-the-default-build-type/
-set(default_build_type "Release")
- 
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-	message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
-  
-	set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
-  
-	# Set the possible values of build type for cmake-gui
-	set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+set( CMAKE_CXX_STANDARD 23 )
+
+add_definitions( -DIFCQUERY_STATIC_LIB )
+
+file( GLOB_RECURSE IFC_HEADERS include/ifcpp/Ifc *.h )
+file( GLOB_RECURSE IFC_SOURCES src/Ifc *.cpp )
+
+set( SOURCES
+        src/Model/AttributeObject.cpp
+        src/Model/BuildingGuid.cpp
+        src/Model/BuildingModel.cpp
+        src/Model/UnitConverter.cpp
+        src/Reader/ReaderSTEP.cpp
+        src/Reader/ReaderUtil.cpp
+        src/Writer/WriterSTEP.cpp
+        src/Writer/WriterUtil.cpp
+        ${IFC_SOURCES} )
+
+set( HEADERS
+        include/ifcpp/Geometry/Matrix.h
+        include/ifcpp/Model/AttributeObject.h
+        include/ifcpp/Model/BasicTypes.h
+        include/ifcpp/Model/BuildingException.h
+        include/ifcpp/Model/BuildingGuid.h
+        include/ifcpp/Model/BuildingModel.h
+        include/ifcpp/Model/BuildingObject.h
+        include/ifcpp/Model/GlobalDefines.h
+        include/ifcpp/Model/OpenMPIncludes.h
+        include/ifcpp/Model/StatusCallback.h
+        include/ifcpp/Model/UnitConverter.h
+        include/ifcpp/Model/UnknownEntityException.h
+        include/ifcpp/Geometry/GeometryGenerator.h
+        include/ifcpp/Geometry/CAdapter.h
+        include/ifcpp/Geometry/GeometryConverter.h
+        include/ifcpp/Geometry/PrimitivesConverter.h
+        include/ifcpp/Geometry/VectorAdapter.h
+        include/ifcpp/Geometry/Parameters.h
+        include/ifcpp/Geometry/CurveConverter.h
+        include/ifcpp/Geometry/ProfileConverter.h
+        include/ifcpp/Geometry/GeomUtils.h
+        include/ifcpp/Geometry/SolidConverter.h
+        include/ifcpp/Geometry/SplineConverter.h
+        include/ifcpp/Geometry/Extruder.h
+        ${IFC_HEADERS} )
+
+
+
+add_library( ${PROJECT_NAME} STATIC ${SOURCES} ${HEADERS} )
+target_include_directories( ${PROJECT_NAME} PUBLIC include )
+if( MSVC )
+    target_compile_options( ${PROJECT_NAME} PRIVATE "/bigobj" )
 endif()
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-
-project(IFCPP)
-message(STATUS "------------------------------------------------------------------------")
-
-option(BUILD_CONSOLE_APPLICATION "Build an example CLI application" ON)
-if (WIN32)
-	option(BUILD_VIEWER_APPLICATION "Build the viewer example application" ON)
-else(NOT WIN32)
-	option(BUILD_VIEWER_APPLICATION "Build the viewer example application" OFF)
-endif()
-option(USE_OSG_DEBUG "Use openscenegraph debug library" OFF)
-
-IF(NOT WIN32)
-    IF("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
-        IF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-            SET_PROPERTY(DIRECTORY APPEND PROPERTY
-                COMPILE_DEFINITIONS $<$<CONFIG:Debug>:_DEBUG>
-            )
-        ENDIF()
-    ENDIF()
-    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-ELSE(NOT WIN32)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
-ENDIF(NOT WIN32)
-
-find_package(OpenMP)
-if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
-
-set(IFCPP_CONFIG_DIR "share/IFCPP/cmake")
-ADD_SUBDIRECTORY (IfcPlusPlus)
-
-# Install configuration file
-INCLUDE(CMakePackageConfigHelpers)
-set(config_file_input  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/IFCPPConfig.cmake.in")
-set(config_file_output "${CMAKE_CURRENT_BINARY_DIR}/cmake/IFCPPConfig.cmake")
-
-CONFIGURE_PACKAGE_CONFIG_FILE(
-  ${config_file_input}
-  ${config_file_output}
-  INSTALL_DESTINATION ${IFCPP_CONFIG_DIR})
-
-INSTALL(
-  FILES ${config_file_output}
-  DESTINATION ${IFCPP_CONFIG_DIR})
-  
-IF(BUILD_CONSOLE_APPLICATION)
-  ADD_SUBDIRECTORY (examples/CreateIfcWallAndWriteFile)
-  ADD_SUBDIRECTORY (examples/LoadFileExample)
-  ADD_SUBDIRECTORY (examples/LoadFileWithGeometryExample)
-ENDIF()
-IF(BUILD_VIEWER_APPLICATION)
-  ADD_SUBDIRECTORY (examples/SimpleViewerExampleQt)
-ENDIF()

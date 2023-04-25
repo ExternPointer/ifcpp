@@ -23,15 +23,21 @@
 #include "ifcpp/Ifc/IfcFace.h"
 #include "ifcpp/Ifc/IfcFaceBasedSurfaceModel.h"
 #include "ifcpp/Ifc/IfcFeatureElementSubtraction.h"
+#include "ifcpp/Ifc/IfcGeometricCurveSet.h"
+#include "ifcpp/Ifc/IfcGeometricSet.h"
+#include "ifcpp/Ifc/IfcMappedItem.h"
 #include "ifcpp/Ifc/IfcObjectDefinition.h"
 #include "ifcpp/Ifc/IfcOpenShell.h"
 #include "ifcpp/Ifc/IfcProductRepresentation.h"
 #include "ifcpp/Ifc/IfcRelVoidsElement.h"
 #include "ifcpp/Ifc/IfcRepresentation.h"
+#include "ifcpp/Ifc/IfcRepresentationMap.h"
+#include "ifcpp/Ifc/IfcSectionedSpine.h"
 #include "ifcpp/Ifc/IfcShellBasedSurfaceModel.h"
 #include "ifcpp/Ifc/IfcSpace.h"
-#include "ifcpp/Ifc/IfcMappedItem.h"
-#include "ifcpp/Ifc/IfcRepresentationMap.h"
+#include "ifcpp/Ifc/IfcTessellatedItem.h"
+#include "ifcpp/Ifc/IfcTextLiteral.h"
+#include "ifcpp/Ifc/IfcAnnotationFillArea.h"
 
 
 namespace ifcpp {
@@ -145,8 +151,8 @@ private:
             std::copy( l.begin(), l.end(), std::back_inserter( polylines ) );
         }
 
-        auto matrix = TMatrix::GetScale( this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor );
-        TMatrix::Multiply( &matrix, this->m_primitivesConverter->ConvertPlacement( product->m_ObjectPlacement ) );
+        auto matrix = this->m_primitivesConverter->ConvertPlacement( product->m_ObjectPlacement );
+        TMatrix::Multiply( &matrix, TMatrix::GetScale( this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor ) );
         this->m_adapter->Transform( &polygons, matrix );
         this->m_adapter->Transform( &polylines, matrix );
 
@@ -176,9 +182,64 @@ private:
                 std::copy( p.begin(), p.end(), std::back_inserter( polygons ) );
                 std::copy( l.begin(), l.end(), std::back_inserter( polylines ) );
             }
+
+            const auto topologicalItem = std::dynamic_pointer_cast<IfcTopologicalRepresentationItem>( item );
+            if( topologicalItem ) {
+                auto [ p, l ] = this->ConvertTopologicalRepresentationItem( topologicalItem );
+                std::copy( p.begin(), p.end(), std::back_inserter( polygons ) );
+                std::copy( l.begin(), l.end(), std::back_inserter( polylines ) );
+            }
         }
 
         return { polygons, polylines };
+    }
+
+    std::tuple<std::vector<TPolygon>, std::vector<TPolyline>>
+    ConvertTopologicalRepresentationItem( const shared_ptr<IfcTopologicalRepresentationItem>& topological_item ) {
+        // IfcTopologicalRepresentationItem ABSTRACT SUPERTYPE OF(ONEOF(IfcConnectedFaceSet, IfcEdge, IfcFace, IfcFaceBound, IfcLoop, IfcPath, IfcVertex))
+
+        const auto topo_connected_face_set = dynamic_pointer_cast<IfcConnectedFaceSet>( topological_item );
+        if( topo_connected_face_set ) {
+            std::vector<std::vector<TVector>> loops = this->m_geometryConverter->ConvertFaces( topo_connected_face_set->m_CfsFaces );
+
+            // TODO: Rework (try to fix points order)
+            auto reversed = loops;
+            for( auto& l: reversed ) {
+                std::reverse( l.begin(), l.end() );
+            }
+            std::copy( std::begin( reversed ), std::end( reversed ), std::back_inserter( loops ) );
+
+            return { this->CreatePolygons( loops ), {} };
+        }
+
+        const auto topo_edge = dynamic_pointer_cast<IfcEdge>( topological_item );
+        if( topo_edge ) {
+            return { {}, { this->m_adapter->CreatePolyline( this->m_geometryConverter->ConvertEdge( topo_edge ) ) } };
+        }
+
+        const shared_ptr<IfcFace> topo_face = dynamic_pointer_cast<IfcFace>( topological_item );
+        if( topo_face ) {
+            auto loop = this->m_geometryConverter->ConvertFace( topo_face );
+            auto rloop = loop;
+            std::reverse( rloop.begin(), rloop.end() );
+            return { this->CreatePolygons( { loop, rloop } ), {} };
+        }
+
+        const auto topo_face_bound = dynamic_pointer_cast<IfcFaceBound>( topological_item );
+        if( topo_face_bound ) {
+            const auto loop = this->m_geometryConverter->ConvertLoop( topo_face_bound->m_Bound );
+            auto rloop = loop;
+            std::reverse( rloop.begin(), rloop.end() );
+            return { this->CreatePolygons( { loop, rloop } ), {} };
+        }
+
+        const auto topo_loop = dynamic_pointer_cast<IfcLoop>( topological_item );
+        if( topo_loop ) {
+            return { {}, { this->m_adapter->CreatePolyline( this->m_geometryConverter->ConvertLoop( topo_loop ) ) } };
+        }
+
+        // TODO: Implement all
+        return {};
     }
 
     std::tuple<std::vector<TPolygon>, std::vector<TPolyline>> ConvertMappedItem( const std::shared_ptr<IfcMappedItem>& mappedItem ) {
@@ -215,8 +276,8 @@ private:
                         auto [ p, l ] = this->ConvertRepresentation( representation );
                         std::copy( p.begin(), p.end(), std::back_inserter( polygons ) );
                     }
-                    auto m = TMatrix::GetScale( this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor );
-                    TMatrix::Multiply( &m, this->m_primitivesConverter->ConvertPlacement( opening->m_ObjectPlacement ) );
+                    auto m = this->m_primitivesConverter->ConvertPlacement( opening->m_ObjectPlacement );
+                    TMatrix::Multiply( &m, TMatrix::GetScale( this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor ) );
                     this->m_adapter->Transform( &polygons, m );
                     std::copy( polygons.begin(), polygons.end(), std::back_inserter( resultPolygons ) );
                 }
@@ -260,9 +321,78 @@ private:
             return this->ConvertShellBasedSurfaceModel( shellModel );
         }
 
+        const auto tessellatedItem = dynamic_pointer_cast<IfcTessellatedItem>( geometricRepresentation );
+        if( tessellatedItem ) {
+            // TODO: implement
+            return {};
+        }
+
         const auto surface = dynamic_pointer_cast<IfcSurface>( geometricRepresentation );
         if( surface ) {
             return this->ConvertSurface( surface );
+        }
+
+        const auto geometricSet = dynamic_pointer_cast<IfcGeometricSet>( geometricRepresentation );
+        if( geometricSet ) {
+            std::vector<TPolygon> polygons;
+            std::vector<TPolyline> polylines;
+
+            for( const auto& geom_select: geometricSet->m_Elements ) {
+                // TYPE IfcGeometricSetSelect = SELECT (IfcPoint, IfcCurve, IfcSurface);
+                if( !geom_select ) {
+                    continue;
+                }
+
+                shared_ptr<IfcPoint> point = dynamic_pointer_cast<IfcPoint>( geom_select );
+                if( point ) {
+                    // TODO: Implement
+                    continue;
+                }
+
+                shared_ptr<IfcCurve> select_curve = dynamic_pointer_cast<IfcCurve>( geom_select );
+                if( select_curve ) {
+                    const auto [ p, l ] = this->ConvertGeometryRepresentation( select_curve );
+                    std::copy( p.begin(), p.end(), std::back_inserter( polygons ) );
+                    std::copy( l.begin(), l.end(), std::back_inserter( polylines ) );
+                }
+
+                shared_ptr<IfcSurface> select_surface = dynamic_pointer_cast<IfcSurface>( geom_select );
+                if( select_surface ) {
+                    const auto [ p, l ] = this->ConvertGeometryRepresentation( select_surface );
+                    std::copy( p.begin(), p.end(), std::back_inserter( polygons ) );
+                    std::copy( l.begin(), l.end(), std::back_inserter( polylines ) );
+                }
+            }
+
+            shared_ptr<IfcGeometricCurveSet> geometric_curve_set = dynamic_pointer_cast<IfcGeometricCurveSet>( geometricSet );
+            if( geometric_curve_set ) {
+                // no additional attributes
+            }
+            return { polygons, polylines };
+        }
+
+        const auto sectioned_spine = dynamic_pointer_cast<IfcSectionedSpine>( geometricRepresentation );
+        if( sectioned_spine ) {
+            // TODO: Implement
+            return {};
+        }
+
+        const auto text_literal = dynamic_pointer_cast<IfcTextLiteral>( geometricRepresentation );
+        if( text_literal ) {
+            // TODO: Implement
+            return {};
+        }
+
+        const auto annotation_fill_area = dynamic_pointer_cast<IfcAnnotationFillArea>( geometricRepresentation );
+        if( annotation_fill_area ) {
+            // TODO: Implement
+            return {};
+        }
+
+        shared_ptr<IfcPoint> ifc_point = dynamic_pointer_cast<IfcPoint>( geometricRepresentation );
+        if( ifc_point ) {
+            // TODO: Implement
+            return {};
         }
 
         // TODO: Implement all
@@ -334,7 +464,7 @@ private:
                 continue;
             }
             const auto indices = this->m_adapter->Triangulate( l );
-            if( indices.size() < 3) {
+            if( indices.size() < 3 ) {
                 continue;
             }
             for( int i = 0; i < indices.size() - 2; i += 3 ) {

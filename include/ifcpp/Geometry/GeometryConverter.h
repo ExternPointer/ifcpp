@@ -6,7 +6,7 @@
 #include "ifcpp/Geometry/GeomUtils.h"
 #include "ifcpp/Geometry/Matrix.h"
 #include "ifcpp/Geometry/Parameters.h"
-#include "ifcpp/Geometry/PrimitivesConverter.h"
+#include "ifcpp/Geometry/PrimitiveTypesConverter.h"
 #include "ifcpp/Geometry/ProfileConverter.h"
 #include "ifcpp/Geometry/SplineConverter.h"
 #include "ifcpp/Geometry/VectorAdapter.h"
@@ -41,7 +41,7 @@ class GeometryConverter {
     using TEdge = std::vector<TVector>;
     using AVector = VectorAdapter<TVector>;
 
-    std::shared_ptr<PrimitivesConverter<TVector>> m_primitivesConverter;
+    std::shared_ptr<PrimitiveTypesConverter<TVector>> m_primitivesConverter;
     std::shared_ptr<CurveConverter<TVector>> m_curveConverter;
     std::shared_ptr<SplineConverter<TVector>> m_splineConverter;
     std::shared_ptr<GeomUtils<TVector>> m_geomUtils;
@@ -51,7 +51,7 @@ class GeometryConverter {
 
 public:
     explicit GeometryConverter( const std::shared_ptr<CurveConverter<TVector>>& curveConverter,
-                                const std::shared_ptr<PrimitivesConverter<TVector>>& primitivesConverter,
+                                const std::shared_ptr<PrimitiveTypesConverter<TVector>>& primitivesConverter,
                                 const std::shared_ptr<SplineConverter<TVector>>& splineConverter, const std::shared_ptr<GeomUtils<TVector>> geomUtils,
                                 const std::shared_ptr<Extruder<TVector>>& extruder, const std::shared_ptr<ProfileConverter<TVector>>& profileConverter,
                                 const std::shared_ptr<Parameters>& parameters )
@@ -148,7 +148,7 @@ public:
         std::copy( std::begin( loops ) + 1, std::end( loops ), std::back_inserter( inners ) );
 
         auto inner = this->m_geomUtils->CombineLoops( inners );
-        std::reverse( std::begin( inner ), std::end( inner ) );
+        // TODO: Check order
         return this->m_geomUtils->CombineLoops( { outer, inner } );
     }
 
@@ -181,7 +181,7 @@ public:
                 }
 
                 auto inner = this->m_geomUtils->CombineLoops( inners );
-                std::reverse( std::begin( inner ), std::end( inner ) );
+                // TODO: Check order
                 auto result = this->m_geomUtils->CombineLoops( { outer, inner } );
                 curve_bounded_plane_matrix.TransformLoop( &result );
                 return { result };

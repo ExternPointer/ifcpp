@@ -29,7 +29,7 @@ namespace ifcpp {
 using namespace IFC4X3;
 
 template<CVector TVector>
-class PrimitivesConverter {
+class PrimitiveTypesConverter {
     using TMatrix = Matrix<TVector>;
     using AVector = VectorAdapter<TVector>;
 

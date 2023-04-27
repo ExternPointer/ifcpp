@@ -4,7 +4,7 @@
 #include "ifcpp/Geometry/CAdapter.h"
 #include "ifcpp/Geometry/GeomUtils.h"
 #include "ifcpp/Geometry/Parameters.h"
-#include "ifcpp/Geometry/PrimitivesConverter.h"
+#include "ifcpp/Geometry/PrimitiveTypesConverter.h"
 #include "ifcpp/Geometry/VectorAdapter.h"
 
 #include "ifcpp/Ifc/IfcBSplineCurve.h"
@@ -24,11 +24,11 @@ class SplineConverter {
     using AVector = VectorAdapter<TVector>;
 
     std::shared_ptr<Parameters> m_parameters;
-    std::shared_ptr<PrimitivesConverter<TVector>> m_primitivesConverter;
+    std::shared_ptr<PrimitiveTypesConverter<TVector>> m_primitivesConverter;
     std::shared_ptr<GeomUtils<TVector>> m_geomUtils;
 
 public:
-    SplineConverter( const std::shared_ptr<PrimitivesConverter<TVector>> primitivesConverter, const std::shared_ptr<GeomUtils<TVector>>& geomUtils,
+    SplineConverter( const std::shared_ptr<PrimitiveTypesConverter<TVector>> primitivesConverter, const std::shared_ptr<GeomUtils<TVector>>& geomUtils,
                      const std::shared_ptr<Parameters>& parameters )
         : m_primitivesConverter( primitivesConverter )
         , m_geomUtils( geomUtils )

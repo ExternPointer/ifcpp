@@ -35,7 +35,7 @@ set( HEADERS
         include/ifcpp/Geometry/GeometryGenerator.h
         include/ifcpp/Geometry/CAdapter.h
         include/ifcpp/Geometry/GeometryConverter.h
-        include/ifcpp/Geometry/PrimitivesConverter.h
+        include/ifcpp/Geometry/PrimitiveTypesConverter.h
         include/ifcpp/Geometry/VectorAdapter.h
         include/ifcpp/Geometry/Parameters.h
         include/ifcpp/Geometry/CurveConverter.h
@@ -44,6 +44,7 @@ set( HEADERS
         include/ifcpp/Geometry/SolidConverter.h
         include/ifcpp/Geometry/SplineConverter.h
         include/ifcpp/Geometry/Extruder.h
+        include/ifcpp/Geometry/Helpers.h
         ${IFC_HEADERS} )
 
 

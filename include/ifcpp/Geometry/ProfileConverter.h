@@ -7,7 +7,7 @@
 #include "ifcpp/Geometry/GeomUtils.h"
 #include "ifcpp/Geometry/Matrix.h"
 #include "ifcpp/Geometry/Parameters.h"
-#include "ifcpp/Geometry/PrimitivesConverter.h"
+#include "ifcpp/Geometry/PrimitiveTypesConverter.h"
 #include "ifcpp/Geometry/VectorAdapter.h"
 
 #include "ifcpp/Ifc/IfcArbitraryClosedProfileDef.h"
@@ -45,14 +45,14 @@ class ProfileConverter {
     using AVector = VectorAdapter<TVector>;
 
     std::shared_ptr<CurveConverter<TVector>> m_curveConverter;
-    std::shared_ptr<PrimitivesConverter<TVector>> m_primitivesConverter;
+    std::shared_ptr<PrimitiveTypesConverter<TVector>> m_primitivesConverter;
     std::shared_ptr<GeomUtils<TVector>> m_geomUtils;
     std::shared_ptr<Parameters> m_parameters;
 
 
 public:
     ProfileConverter( const std::shared_ptr<CurveConverter<TVector>>& curveConverter, const std::shared_ptr<GeomUtils<TVector>> geomUtils,
-                      const std::shared_ptr<PrimitivesConverter<TVector>>& primitivesConverter, const std::shared_ptr<Parameters>& parameters )
+                      const std::shared_ptr<PrimitiveTypesConverter<TVector>>& primitivesConverter, const std::shared_ptr<Parameters>& parameters )
         : m_curveConverter( curveConverter )
         , m_geomUtils( geomUtils )
         , m_primitivesConverter( primitivesConverter )
@@ -109,7 +109,7 @@ private:
         }
 
         auto hole = this->m_geomUtils->CombineLoops( holes );
-        std::reverse( std::begin( hole ), std::end( hole ) );
+        // TODO: Check order
 
         auto result = this->m_geomUtils->CombineLoops( { outer, hole } );
         if( !result.empty() ) {

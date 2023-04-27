@@ -48,7 +48,7 @@ template<CAdapter TAdapter>
 class SolidConverter {
     using TVector = typename TAdapter::TVector;
     using AVector = VectorAdapter<TVector>;
-    using TPolygon = typename TAdapter::TPolygon;
+    using TTriangle = typename TAdapter::TTriangle;
 
     std::shared_ptr<PrimitivesConverter<TVector>> m_primitivesConverter;
     std::shared_ptr<CurveConverter<TVector>> m_curveConverter;
@@ -74,7 +74,7 @@ public:
         , m_parameters( parameters ) {
     }
 
-    std::vector<TPolygon> ConvertSolidModel( const shared_ptr<IfcSolidModel>& solid_model ) {
+    std::vector<TTriangle> ConvertSolidModel( const shared_ptr<IfcSolidModel>& solid_model ) {
         // ENTITY IfcSolidModel ABSTRACT SUPERTYPE OF(ONEOF(IfcCsgSolid, IfcManifoldSolidBrep, IfcSweptAreaSolid, IfcSweptDiskSolid))
 
         const auto swept_area_solid = dynamic_pointer_cast<IfcSweptAreaSolid>( solid_model );
@@ -101,7 +101,7 @@ public:
         return {};
     }
 
-    std::vector<TPolygon> ConvertBooleanResult( const shared_ptr<IfcBooleanResult>& bool_result ) {
+    std::vector<TTriangle> ConvertBooleanResult( const shared_ptr<IfcBooleanResult>& bool_result ) {
         shared_ptr<IfcBooleanOperator>& ifc_boolean_operator = bool_result->m_Operator;
         shared_ptr<IfcBooleanOperand> ifc_first_operand = bool_result->m_FirstOperand;
         shared_ptr<IfcBooleanOperand> ifc_second_operand = bool_result->m_SecondOperand;
@@ -143,7 +143,7 @@ public:
 
 
 private:
-    std::vector<TPolygon> ConvertSweptAreaSolid( const shared_ptr<IfcSweptAreaSolid>& swept_area_solid ) {
+    std::vector<TTriangle> ConvertSweptAreaSolid( const shared_ptr<IfcSweptAreaSolid>& swept_area_solid ) {
         // ENTITY IfcSweptAreaSolid
         //	ABSTRACT SUPERTYPE OF(ONEOF(IfcExtrudedAreaSolid, IfcFixedReferenceSweptAreaSolid, IfcRevolvedAreaSolid, IfcSurfaceCurveSweptAreaSolid))
         //	SUBTYPE OF IfcSolidModel;
@@ -183,7 +183,7 @@ private:
         return {};
     }
 
-    std::vector<TPolygon> ConvertExtrudedAreaSolid( const shared_ptr<IfcExtrudedAreaSolid>& extruded_area ) {
+    std::vector<TTriangle> ConvertExtrudedAreaSolid( const shared_ptr<IfcExtrudedAreaSolid>& extruded_area ) {
         if( !extruded_area->m_ExtrudedDirection || !extruded_area->m_Depth || !extruded_area->m_SweptArea ) {
             // TODO: Log error
             return {};
@@ -196,7 +196,7 @@ private:
         return this->CreatePolygons( loops );
     }
 
-    std::vector<TPolygon> ConvertFixedReferenceSweptAreaSolid( const shared_ptr<IfcFixedReferenceSweptAreaSolid>& fixed_reference_swept_area_solid ) {
+    std::vector<TTriangle> ConvertFixedReferenceSweptAreaSolid( const shared_ptr<IfcFixedReferenceSweptAreaSolid>& fixed_reference_swept_area_solid ) {
         // Directrix	 : OPTIONAL IfcCurve;
         // StartParam	 : OPTIONAL IfcParameterValue;
         // EndParam	 : OPTIONAL IfcParameterValue;
@@ -210,7 +210,7 @@ private:
         return this->CreatePolygons( loops );
     }
 
-    std::vector<TPolygon> ConvertRevolvedAreaSolid( const shared_ptr<IfcRevolvedAreaSolid>& revolved_area ) {
+    std::vector<TTriangle> ConvertRevolvedAreaSolid( const shared_ptr<IfcRevolvedAreaSolid>& revolved_area ) {
         if( !revolved_area || !revolved_area->m_Angle || !revolved_area->m_SweptArea || !revolved_area->m_Axis ) {
             // TODO: Log error
             return {};
@@ -229,7 +229,7 @@ private:
         return this->CreatePolygons( loops );
     }
 
-    std::vector<TPolygon> ConvertManifoldSolidBrep( const std::shared_ptr<IfcManifoldSolidBrep>& manifold_solid_brep ) {
+    std::vector<TTriangle> ConvertManifoldSolidBrep( const std::shared_ptr<IfcManifoldSolidBrep>& manifold_solid_brep ) {
         if( !manifold_solid_brep->m_Outer ) {
             // TODO: Log error
             return {};
@@ -249,7 +249,7 @@ private:
         }
         std::copy( std::begin( reversed ), std::end( reversed ), std::back_inserter( loops ) );
 
-        std::vector<TPolygon> result = this->CreatePolygons( loops );
+        std::vector<TTriangle> result = this->CreatePolygons( loops );
 
         shared_ptr<IfcFacetedBrep> faceted_brep = dynamic_pointer_cast<IfcFacetedBrep>( manifold_solid_brep );
         if( faceted_brep ) {
@@ -272,7 +272,7 @@ private:
         return {};
     }
 
-    std::vector<TPolygon> ConvertCsgSolid( const std::shared_ptr<IfcCsgSolid> csg_solid ) {
+    std::vector<TTriangle> ConvertCsgSolid( const std::shared_ptr<IfcCsgSolid> csg_solid ) {
         const auto& csg_select = csg_solid->m_TreeRootExpression;
         const auto csg_select_boolean_result = dynamic_pointer_cast<IfcBooleanResult>( csg_select );
         if( csg_select_boolean_result ) {
@@ -286,7 +286,7 @@ private:
         return {};
     }
 
-    std::vector<TPolygon> ConvertSweptDiskSolid( const std::shared_ptr<IfcSweptDiskSolid>& swept_disk_solid ) {
+    std::vector<TTriangle> ConvertSweptDiskSolid( const std::shared_ptr<IfcSweptDiskSolid>& swept_disk_solid ) {
         // ENTITY IfcSweptDiskSolid;
         //	ENTITY IfcRepresentationItem;
         //	INVERSE
@@ -331,7 +331,7 @@ private:
         return this->CreatePolygons( loops );
     }
 
-    std::vector<TPolygon> ConvertBooleanOperand( const shared_ptr<IfcBooleanOperand>& operand_select ) {
+    std::vector<TTriangle> ConvertBooleanOperand( const shared_ptr<IfcBooleanOperand>& operand_select ) {
         // TYPE IfcBooleanOperand = SELECT	(IfcBooleanResult	,IfcCsgPrimitive3D	,IfcHalfSpaceSolid	,IfcSolidModel);
 
         const auto solid_model = dynamic_pointer_cast<IfcSolidModel>( operand_select );
@@ -358,7 +358,7 @@ private:
         return {};
     }
 
-    std::vector<TPolygon> ConvertHalfSpaceSolid( const shared_ptr<IfcHalfSpaceSolid>& half_space_solid ) {
+    std::vector<TTriangle> ConvertHalfSpaceSolid( const shared_ptr<IfcHalfSpaceSolid>& half_space_solid ) {
         // ENTITY IfcHalfSpaceSolid SUPERTYPE OF(ONEOF(IfcBoxedHalfSpace, IfcPolygonalBoundedHalfSpace))
 
         std::vector<std::vector<TVector>> resultLoops;
@@ -448,7 +448,7 @@ private:
         return this->CreatePolygons( resultLoops );
     }
 
-    std::vector<TPolygon> ConvertCsgPrimitive3D( const shared_ptr<IfcCsgPrimitive3D>& csg_primitive ) {
+    std::vector<TTriangle> ConvertCsgPrimitive3D( const shared_ptr<IfcCsgPrimitive3D>& csg_primitive ) {
         // ENTITY IfcCsgPrimitive3D  ABSTRACT SUPERTYPE OF(ONEOF(IfcBlock, IfcRectangularPyramid, IfcRightCircularCone, IfcRightCircularCylinder, IfcSphere
         const auto primitive_placement_matrix = this->m_primitivesConverter->ConvertPlacement( csg_primitive->m_Position );
 
@@ -481,7 +481,7 @@ private:
         return {};
     }
 
-    std::vector<TPolygon> ConvertBlock( const std::shared_ptr<IfcBlock>& block ) {
+    std::vector<TTriangle> ConvertBlock( const std::shared_ptr<IfcBlock>& block ) {
         if( !block->m_XLength || !block->m_YLength || !block->m_ZLength ) {
             // TODO: Log error
             return {};
@@ -503,32 +503,32 @@ private:
         vertices.push_back( AVector::New( -x_length, -y_length, -z_length ) );
         vertices.push_back( AVector::New( x_length, -y_length, -z_length ) );
 
-        std::vector<TPolygon> polygons;
+        std::vector<TTriangle> polygons;
 
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 0, 1, 2 } ) );
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 2, 3, 0 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 0, 1, 2 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 2, 3, 0 } ) );
 
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 7, 6, 5 } ) );
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 5, 4, 7 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 7, 6, 5 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 5, 4, 7 } ) );
 
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 0, 4, 5 } ) );
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 5, 1, 0 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 0, 4, 5 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 5, 1, 0 } ) );
 
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 1, 5, 6 } ) );
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 6, 2, 1 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 1, 5, 6 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 6, 2, 1 } ) );
 
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 2, 6, 7 } ) );
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 7, 3, 2 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 2, 6, 7 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 7, 3, 2 } ) );
 
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 3, 7, 4 } ) );
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 4, 0, 3 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 3, 7, 4 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 4, 0, 3 } ) );
 
         this->m_adapter->Transform( &polygons, primitive_placement_matrix );
 
         return polygons;
     }
 
-    std::vector<TPolygon> ConvertRectangularPyramid( const std::shared_ptr<IfcRectangularPyramid>& rectangular_pyramid ) {
+    std::vector<TTriangle> ConvertRectangularPyramid( const std::shared_ptr<IfcRectangularPyramid>& rectangular_pyramid ) {
         if( !rectangular_pyramid->m_XLength || !rectangular_pyramid->m_YLength || !rectangular_pyramid->m_Height ) {
             // TODO: Log error
             return {};
@@ -547,19 +547,19 @@ private:
         vertices.push_back( AVector::New( -x_length, y_length, 0.0 ) );
         vertices.push_back( AVector::New( x_length, y_length, 0.0 ) );
 
-        std::vector<TPolygon> polygons;
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 1, 2, 3 } ) );
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 3, 4, 1 } ) );
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 0, 2, 1 } ) );
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 0, 1, 4 } ) );
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 0, 4, 3 } ) );
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 0, 3, 2 } ) );
+        std::vector<TTriangle> polygons;
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 1, 2, 3 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 3, 4, 1 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 0, 2, 1 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 0, 1, 4 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 0, 4, 3 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 0, 3, 2 } ) );
 
         this->m_adapter->Transform( &polygons, primitive_placement_matrix );
         return polygons;
     }
 
-    std::vector<TPolygon> ConvertRightCircularCone( const std::shared_ptr<IfcRightCircularCone>& right_circular_cone ) {
+    std::vector<TTriangle> ConvertRightCircularCone( const std::shared_ptr<IfcRightCircularCone>& right_circular_cone ) {
         const auto primitive_placement_matrix = this->m_primitivesConverter->ConvertPlacement( right_circular_cone->m_Position );
 
         if( !right_circular_cone->m_Height || !right_circular_cone->m_BottomRadius ) {
@@ -581,23 +581,23 @@ private:
             angle += d_angle;
         }
 
-        std::vector<TPolygon> polygons;
+        std::vector<TTriangle> polygons;
         // outer shape
         for( int i = 0; i < this->m_parameters->m_numVerticesPerCircle - 1; ++i ) {
-            polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 0, i + 3, i + 2 } ) );
+            polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 0, i + 3, i + 2 } ) );
         }
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 0, 2, this->m_parameters->m_numVerticesPerCircle + 1 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 0, 2, this->m_parameters->m_numVerticesPerCircle + 1 } ) );
 
         // bottom circle
         for( int i = 0; i < this->m_parameters->m_numVerticesPerCircle - 1; ++i ) {
-            polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 1, i + 2, i + 3 } ) );
+            polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 1, i + 2, i + 3 } ) );
         }
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 1, this->m_parameters->m_numVerticesPerCircle + 1, 2 } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 1, this->m_parameters->m_numVerticesPerCircle + 1, 2 } ) );
         this->m_adapter->Transform( &polygons, primitive_placement_matrix );
         return polygons;
     }
 
-    std::vector<TPolygon> ConvertRightCircularCylinder( const std::shared_ptr<IfcRightCircularCylinder>& right_circular_cylinder ) {
+    std::vector<TTriangle> ConvertRightCircularCylinder( const std::shared_ptr<IfcRightCircularCylinder>& right_circular_cylinder ) {
         if( !right_circular_cylinder->m_Height || !right_circular_cylinder->m_Radius ) {
             // TODO: Log error
             return {};
@@ -614,7 +614,7 @@ private:
         return this->CreatePolygons( loops );
     }
 
-    std::vector<TPolygon> ConvertSphere( const std::shared_ptr<IfcSphere>& sphere ) {
+    std::vector<TTriangle> ConvertSphere( const std::shared_ptr<IfcSphere>& sphere ) {
         if( !sphere->m_Radius ) {
             // TODO: Log error
             return {};
@@ -654,36 +654,36 @@ private:
         }
         vertices.push_back( AVector::New( 0.0, 0.0, -radius ) ); // bottom
 
-        std::vector<TPolygon> polygons;
+        std::vector<TTriangle> polygons;
         // upper triangle fan
         for( int i = 0; i < nvc - 1; ++i ) {
-            polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 0, i + 2, i + 1 } ) );
+            polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 0, i + 2, i + 1 } ) );
         }
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { 0, 1, nvc } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { 0, 1, nvc } ) );
 
         for( int vertical = 1; vertical < num_vertical_edges - 2; ++vertical ) {
             int offset_inner = nvc * ( vertical - 1 ) + 1;
             int offset_outer = nvc * vertical + 1;
             for( int i = 0; i < nvc - 1; ++i ) {
-                polygons.push_back( this->m_adapter->CreatePolygon( vertices, { offset_inner + i, offset_inner + 1 + i, offset_outer + 1 + i } ) );
-                polygons.push_back( this->m_adapter->CreatePolygon( vertices, { offset_outer + 1 + i, offset_outer + i, offset_inner + i } ) );
+                polygons.push_back( this->m_adapter->CreateTriangle( vertices, { offset_inner + i, offset_inner + 1 + i, offset_outer + 1 + i } ) );
+                polygons.push_back( this->m_adapter->CreateTriangle( vertices, { offset_outer + 1 + i, offset_outer + i, offset_inner + i } ) );
             }
-            polygons.push_back( this->m_adapter->CreatePolygon( vertices, { offset_inner + nvc - 1, offset_inner, offset_outer } ) );
-            polygons.push_back( this->m_adapter->CreatePolygon( vertices, { offset_outer, offset_outer + nvc - 1, offset_inner + nvc - 1 } ) );
+            polygons.push_back( this->m_adapter->CreateTriangle( vertices, { offset_inner + nvc - 1, offset_inner, offset_outer } ) );
+            polygons.push_back( this->m_adapter->CreateTriangle( vertices, { offset_outer, offset_outer + nvc - 1, offset_inner + nvc - 1 } ) );
         }
 
         // lower triangle fan
         int last_index = ( num_vertical_edges - 2 ) * nvc + 1;
         for( int i = 0; i < nvc - 1; ++i ) {
-            polygons.push_back( this->m_adapter->CreatePolygon( vertices, { last_index, last_index - ( i + 2 ), last_index - ( i + 1 ) } ) );
+            polygons.push_back( this->m_adapter->CreateTriangle( vertices, { last_index, last_index - ( i + 2 ), last_index - ( i + 1 ) } ) );
         }
-        polygons.push_back( this->m_adapter->CreatePolygon( vertices, { last_index, last_index - 1, last_index - nvc } ) );
+        polygons.push_back( this->m_adapter->CreateTriangle( vertices, { last_index, last_index - 1, last_index - nvc } ) );
         this->m_adapter->Transform( &polygons, primitive_placement_matrix );
         return polygons;
     }
 
-    std::vector<TPolygon> CreatePolygons( const std::vector<std::vector<TVector>>& loops ) {
-        std::vector<TPolygon> result;
+    std::vector<TTriangle> CreatePolygons( const std::vector<std::vector<TVector>>& loops ) {
+        std::vector<TTriangle> result;
         for( const auto& l: loops ) {
             if( l.size() < 3 ) {
                 // WTF????
@@ -695,7 +695,7 @@ private:
                 continue;
             }
             for( int i = 0; i < indices.size() - 2; i += 3 ) {
-                result.push_back( this->m_adapter->CreatePolygon( l, { indices[ i ], indices[ i + 1 ], indices[ i + 2 ] } ) );
+                result.push_back( this->m_adapter->CreateTriangle( l, { indices[ i ], indices[ i + 1 ], indices[ i + 2 ] } ) );
             }
         }
         return result;

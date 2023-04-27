@@ -48,7 +48,7 @@ template<CAdapter TAdapter>
 class GeometryGenerator {
     using TEntity = typename TAdapter::TEntity;
     using TVector = typename TAdapter::TVector;
-    using TPolygon = typename TAdapter::TPolygon;
+    using TTriangle = typename TAdapter::TTriangle;
     using TPolyline = typename TAdapter::TPolyline;
     using TMatrix = Matrix<TVector>;
 
@@ -143,7 +143,7 @@ private:
             return this->m_adapter->CreateEntity( object, {}, {} );
         }
 
-        std::vector<TPolygon> polygons;
+        std::vector<TTriangle> polygons;
         std::vector<TPolyline> polylines;
         for( const auto& item: product->m_Representation->m_Representations ) {
             const auto [ p, l ] = this->ConvertRepresentation( item );
@@ -159,11 +159,12 @@ private:
         const auto opening = this->ConvertRelatedOpening( object );
         polygons = this->m_adapter->ComputeDifference( polygons, opening );
 
-        return this->m_adapter->CreateEntity( object, polygons, polylines );
+        const auto mesh = this->m_adapter->CreateMesh( polygons );
+        return this->m_adapter->CreateEntity( object, { mesh }, polylines );
     }
 
-    std::tuple<std::vector<TPolygon>, std::vector<TPolyline>> ConvertRepresentation( const std::shared_ptr<IfcRepresentation>& representation ) {
-        std::vector<TPolygon> polygons;
+    std::tuple<std::vector<TTriangle>, std::vector<TPolyline>> ConvertRepresentation( const std::shared_ptr<IfcRepresentation>& representation ) {
+        std::vector<TTriangle> polygons;
         std::vector<TPolyline> polylines;
 
         for( const auto& item: representation->m_Items ) {
@@ -194,7 +195,7 @@ private:
         return { polygons, polylines };
     }
 
-    std::tuple<std::vector<TPolygon>, std::vector<TPolyline>>
+    std::tuple<std::vector<TTriangle>, std::vector<TPolyline>>
     ConvertTopologicalRepresentationItem( const shared_ptr<IfcTopologicalRepresentationItem>& topological_item ) {
         // IfcTopologicalRepresentationItem ABSTRACT SUPERTYPE OF(ONEOF(IfcConnectedFaceSet, IfcEdge, IfcFace, IfcFaceBound, IfcLoop, IfcPath, IfcVertex))
 
@@ -242,7 +243,7 @@ private:
         return {};
     }
 
-    std::tuple<std::vector<TPolygon>, std::vector<TPolyline>> ConvertMappedItem( const std::shared_ptr<IfcMappedItem>& mappedItem ) {
+    std::tuple<std::vector<TTriangle>, std::vector<TPolyline>> ConvertMappedItem( const std::shared_ptr<IfcMappedItem>& mappedItem ) {
         if( !mappedItem->m_MappingSource || !mappedItem->m_MappingSource->m_MappedRepresentation ) {
             // TODO: Log error
             return {};
@@ -260,11 +261,11 @@ private:
         return { polygons, polylines };
     }
 
-    std::vector<TPolygon> ConvertRelatedOpening( const std::shared_ptr<IFC4X3::IfcObjectDefinition>& object ) {
-        std::vector<TPolygon> resultPolygons;
+    std::vector<TTriangle> ConvertRelatedOpening( const std::shared_ptr<IFC4X3::IfcObjectDefinition>& object ) {
+        std::vector<TTriangle> resultPolygons;
         if( const auto element = std::dynamic_pointer_cast<IfcElement>( object ) ) {
             for( const auto& openingRef: element->m_HasOpenings_inverse ) {
-                std::vector<TPolygon> polygons;
+                std::vector<TTriangle> polygons;
                 const auto openingRel = openingRef.lock();
                 if( openingRel ) {
                     const auto opening = openingRel->m_RelatedOpeningElement;
@@ -286,7 +287,7 @@ private:
         return resultPolygons;
     }
 
-    std::tuple<std::vector<TPolygon>, std::vector<TPolyline>>
+    std::tuple<std::vector<TTriangle>, std::vector<TPolyline>>
     ConvertGeometryRepresentation( const std::shared_ptr<IFC4X3::IfcGeometricRepresentationItem>& geometricRepresentation ) {
         // ENTITY IfcGeometricRepresentationItem
         // ABSTRACT SUPERTYPE OF(ONEOF(IfcAnnotationFillArea, IfcBooleanResult, IfcBoundingBox, IfcCartesianPointList, IfcCartesianTransformationOperator,
@@ -334,7 +335,7 @@ private:
 
         const auto geometricSet = dynamic_pointer_cast<IfcGeometricSet>( geometricRepresentation );
         if( geometricSet ) {
-            std::vector<TPolygon> polygons;
+            std::vector<TTriangle> polygons;
             std::vector<TPolyline> polylines;
 
             for( const auto& geom_select: geometricSet->m_Elements ) {
@@ -399,7 +400,7 @@ private:
         return {};
     }
 
-    std::tuple<std::vector<TPolygon>, std::vector<TPolyline>> ConvertSurfaceModel( const std::shared_ptr<IfcFaceBasedSurfaceModel>& surfaceModel ) {
+    std::tuple<std::vector<TTriangle>, std::vector<TPolyline>> ConvertSurfaceModel( const std::shared_ptr<IfcFaceBasedSurfaceModel>& surfaceModel ) {
         std::vector<std::shared_ptr<IfcFace>> faces;
         for( const auto& face_set: surfaceModel->m_FbsmFaces ) {
             std::copy( face_set->m_CfsFaces.begin(), face_set->m_CfsFaces.end(), std::back_inserter( faces ) );
@@ -416,7 +417,7 @@ private:
         return { this->CreatePolygons( loops ), {} };
     }
 
-    std::tuple<std::vector<TPolygon>, std::vector<TPolyline>>
+    std::tuple<std::vector<TTriangle>, std::vector<TPolyline>>
     ConvertShellBasedSurfaceModel( const std::shared_ptr<IfcShellBasedSurfaceModel>& shell_based_surface_model ) {
         std::vector<std::shared_ptr<IfcFace>> faces;
         for( const auto& shell_select: shell_based_surface_model->m_SbsmBoundary ) {
@@ -442,7 +443,7 @@ private:
         return { this->CreatePolygons( loops ), {} };
     }
 
-    std::tuple<std::vector<TPolygon>, std::vector<TPolyline>> ConvertSurface( const std::shared_ptr<IfcSurface>& surface ) {
+    std::tuple<std::vector<TTriangle>, std::vector<TPolyline>> ConvertSurface( const std::shared_ptr<IfcSurface>& surface ) {
         auto loops = this->m_geometryConverter->ConvertSurface( surface );
 
         // TODO: Rework (try to fix points order)
@@ -455,8 +456,8 @@ private:
         return { this->CreatePolygons( loops ), {} };
     }
 
-    std::vector<TPolygon> CreatePolygons( const std::vector<std::vector<TVector>>& loops ) {
-        std::vector<TPolygon> result;
+    std::vector<TTriangle> CreatePolygons( const std::vector<std::vector<TVector>>& loops ) {
+        std::vector<TTriangle> result;
         for( const auto& l: loops ) {
             if( l.size() < 3 ) {
                 // WTF????
@@ -468,7 +469,7 @@ private:
                 continue;
             }
             for( int i = 0; i < indices.size() - 2; i += 3 ) {
-                result.push_back( this->m_adapter->CreatePolygon( l, { indices[ i ], indices[ i + 1 ], indices[ i + 2 ] } ) );
+                result.push_back( this->m_adapter->CreateTriangle( l, { indices[ i ], indices[ i + 1 ], indices[ i + 2 ] } ) );
             }
         }
         return result;

@@ -147,9 +147,7 @@ public:
         outer = loops[0];
         std::copy( std::begin( loops ) + 1, std::end( loops ), std::back_inserter( inners ) );
 
-        auto inner = this->m_geomUtils->CombineLoops( inners );
-        // TODO: Check order
-        return this->m_geomUtils->CombineLoops( { outer, inner } );
+        return this->m_geomUtils->IncorporateHoles( outer, inners );
     }
 
     std::vector<TLoop> ConvertFaces( const std::vector<std::shared_ptr<IfcFace>>& loops ) {
@@ -179,10 +177,7 @@ public:
                 for( auto& inner: curve_bounded_plane->m_InnerBoundaries ) {
                     inners.push_back( this->m_geomUtils->SimplifyLoop( this->m_curveConverter->ConvertCurve( inner ) ) );
                 }
-
-                auto inner = this->m_geomUtils->CombineLoops( inners );
-                // TODO: Check order
-                auto result = this->m_geomUtils->CombineLoops( { outer, inner } );
+                auto result = this->m_geomUtils->IncorporateHoles( outer, inners );
                 curve_bounded_plane_matrix.TransformLoop( &result );
                 return { result };
             } else if( const auto curve_bounded_surface = dynamic_pointer_cast<IfcCurveBoundedSurface>( bounded_surface ) ) {

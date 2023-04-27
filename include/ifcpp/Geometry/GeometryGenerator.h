@@ -15,6 +15,7 @@
 #include "ifcpp/Geometry/ProfileConverter.h"
 #include "ifcpp/Geometry/SolidConverter.h"
 #include "ifcpp/Geometry/SplineConverter.h"
+#include "ifcpp/Geometry/StyleConverter.h"
 
 #include "ifcpp/Model/BuildingModel.h"
 #include "ifcpp/Model/UnitConverter.h"
@@ -37,9 +38,11 @@
 #include "ifcpp/Ifc/IfcRepresentationMap.h"
 #include "ifcpp/Ifc/IfcSectionedSpine.h"
 #include "ifcpp/Ifc/IfcShellBasedSurfaceModel.h"
+#include "ifcpp/Ifc/IfcSlab.h"
 #include "ifcpp/Ifc/IfcSpace.h"
 #include "ifcpp/Ifc/IfcTessellatedItem.h"
 #include "ifcpp/Ifc/IfcTextLiteral.h"
+#include "ifcpp/Ifc/IfcWall.h"
 
 
 namespace ifcpp {
@@ -66,6 +69,7 @@ class GeometryGenerator {
     std::shared_ptr<ProfileConverter<TVector>> m_profileConverter;
     std::shared_ptr<SolidConverter<TAdapter>> m_solidConverter;
     std::shared_ptr<SplineConverter<TVector>> m_splineConverter;
+    std::shared_ptr<StyleConverter> m_styleConverter;
     std::shared_ptr<Parameters> m_parameters;
 
 public:
@@ -74,7 +78,8 @@ public:
                        const std::shared_ptr<GeometryConverter<TVector>>& geometryConverter, const std::shared_ptr<GeomUtils<TVector>>& geomUtils,
                        const std::shared_ptr<PrimitiveTypesConverter<TVector>>& primitivesConverter,
                        const std::shared_ptr<ProfileConverter<TVector>>& profileConverter, const std::shared_ptr<SolidConverter<TAdapter>>& solidConverter,
-                       const std::shared_ptr<SplineConverter<TVector>>& splineConverter, const std::shared_ptr<Parameters>& parameters )
+                       const std::shared_ptr<SplineConverter<TVector>>& splineConverter, const std::shared_ptr<StyleConverter>& styleConverter,
+                       const std::shared_ptr<Parameters>& parameters )
         : m_ifcModel( ifcModel )
         , m_adapter( adapter )
         , m_curveConverter( curveConverter )
@@ -85,6 +90,7 @@ public:
         , m_profileConverter( profileConverter )
         , m_solidConverter( solidConverter )
         , m_splineConverter( splineConverter )
+        , m_styleConverter( styleConverter )
         , m_parameters( parameters ) {
         this->m_parameters->m_lengthFactor = (float)ifcModel->getUnitConverter()->getLengthInMeterFactor();
         this->m_parameters->m_angleFactor = (float)ifcModel->getUnitConverter()->getAngleInRadiantFactor();
@@ -133,7 +139,18 @@ private:
         const auto opening = this->ConvertRelatedOpening( object );
         meshes = this->m_adapter->ComputeDifference( meshes, opening );
 
-        // TODO: Add default styles
+        if( std::dynamic_pointer_cast<IfcWall>( object ) ) {
+            auto style = std::make_shared<Style>();
+            style->m_type = Style::SURFACE_FRONT;
+            style->m_color = { 231.0f / 255.0f, 219.0f / 255.0f, 169.0f / 255.0f, 1.0f };
+            this->m_adapter->AddStyles( &meshes, { style } );
+        }
+        if( std::dynamic_pointer_cast<IfcSlab>( object ) ) {
+            auto style = std::make_shared<Style>();
+            style->m_type = Style::SURFACE_FRONT;
+            style->m_color = { 140.0f / 255.0f, 140.0f / 255.0f, 140.0f / 255.0f, 1.0f };
+            this->m_adapter->AddStyles( &meshes, { style } );
+        }
 
         return this->m_adapter->CreateEntity( object, meshes, polylines );
     }
@@ -148,7 +165,9 @@ private:
             Helpers::AppendTo( &polylines, p );
         }
 
-        // TODO: Add styles from layers
+        const auto styles = this->m_styleConverter->GetStyles( representation );
+        this->m_adapter->AddStyles( &meshes, styles );
+        this->m_adapter->AddStyles( &polylines, styles );
 
         return { meshes, polylines };
     }
@@ -172,7 +191,9 @@ private:
 
         // FIXME: IfcTopologicalRepresentationItem (maybe)
 
-        // TODO: Add styles from item and then layer
+        const auto styles = this->m_styleConverter->GetStyles( item );
+        this->m_adapter->AddStyles( &meshes, styles );
+        this->m_adapter->AddStyles( &polylines, styles );
 
         return { meshes, polylines };
     }
@@ -191,7 +212,9 @@ private:
         this->m_adapter->Transform( &meshes, m );
         this->m_adapter->Transform( &polylines, m );
 
-        // TODO: Add styles from layers
+        const auto styles = this->m_styleConverter->GetStyles( mappedItem->m_LayerAssignment_inverse );
+        this->m_adapter->AddStyles( &meshes, styles );
+        this->m_adapter->AddStyles( &polylines, styles );
 
         return { meshes, polylines };
     }

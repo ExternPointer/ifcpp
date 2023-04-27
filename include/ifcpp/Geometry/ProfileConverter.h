@@ -108,10 +108,7 @@ private:
             }
         }
 
-        auto hole = this->m_geomUtils->CombineLoops( holes );
-        // TODO: Check order
-
-        auto result = this->m_geomUtils->CombineLoops( { outer, hole } );
+        auto result = this->m_geomUtils->IncorporateHoles( outer, holes );
         if( !result.empty() ) {
             result.push_back( result[ 0 ] );
         }

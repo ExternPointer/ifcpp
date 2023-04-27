@@ -45,6 +45,7 @@ set( HEADERS
         include/ifcpp/Geometry/SplineConverter.h
         include/ifcpp/Geometry/Extruder.h
         include/ifcpp/Geometry/Helpers.h
+        include/ifcpp/Geometry/StyleConverter.h
         ${IFC_HEADERS} )
 
 

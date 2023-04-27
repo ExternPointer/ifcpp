@@ -40,6 +40,7 @@
 #include "ifcpp/Geometry/Parameters.h"
 #include "ifcpp/Geometry/PrimitiveTypesConverter.h"
 #include "ifcpp/Geometry/ProfileConverter.h"
+#include "ifcpp/Geometry/StyleConverter.h"
 #include "ifcpp/Geometry/VectorAdapter.h"
 
 
@@ -60,6 +61,7 @@ class SolidConverter {
     std::shared_ptr<GeometryConverter<TVector>> m_geometryConverter;
     std::shared_ptr<TAdapter> m_adapter;
     std::shared_ptr<GeomUtils<TVector>> m_geomUtils;
+    std::shared_ptr<StyleConverter> m_styleConverter;
     std::shared_ptr<Parameters> m_parameters;
 
 public:
@@ -67,7 +69,7 @@ public:
                     const std::shared_ptr<CurveConverter<TVector>>& curveConverter, const std::shared_ptr<ProfileConverter<TVector>>& profileConverter,
                     const std::shared_ptr<Extruder<TVector>>& extruder, const std::shared_ptr<GeometryConverter<TVector>> geometryConverter,
                     const std::shared_ptr<TAdapter>& adapter, const std::shared_ptr<GeomUtils<TVector>>& geomUtils,
-                    const std::shared_ptr<Parameters>& parameters )
+                    const std::shared_ptr<StyleConverter> styleConverter, const std::shared_ptr<Parameters>& parameters )
         : m_primitivesConverter( primitivesConverter )
         , m_curveConverter( curveConverter )
         , m_profileConverter( profileConverter )
@@ -75,6 +77,7 @@ public:
         , m_geometryConverter( geometryConverter )
         , m_adapter( adapter )
         , m_geomUtils( geomUtils )
+        , m_styleConverter( styleConverter )
         , m_parameters( parameters ) {
     }
 
@@ -103,30 +106,33 @@ public:
             result = this->ConvertSweptDiskSolid( sweptDiskSolid );
         }
 
-        // TODO: Style
+        const auto styles = this->m_styleConverter->GetStyles( solidModel );
+        this->m_adapter->AddStyles( &result, styles );
 
         return result;
     }
 
-    std::vector<TMesh> ConvertBooleanResult( const shared_ptr<IfcBooleanResult>& bool_result ) {
-        shared_ptr<IfcBooleanOperator>& ifc_boolean_operator = bool_result->m_Operator;
-        shared_ptr<IfcBooleanOperand> ifc_first_operand = bool_result->m_FirstOperand;
-        shared_ptr<IfcBooleanOperand> ifc_second_operand = bool_result->m_SecondOperand;
+    std::vector<TMesh> ConvertBooleanResult( const shared_ptr<IfcBooleanResult>& booleanResult ) {
+        shared_ptr<IfcBooleanOperator>& ifc_boolean_operator = booleanResult->m_Operator;
+        shared_ptr<IfcBooleanOperand> ifc_first_operand = booleanResult->m_FirstOperand;
+        shared_ptr<IfcBooleanOperand> ifc_second_operand = booleanResult->m_SecondOperand;
         if( !ifc_boolean_operator || !ifc_first_operand || !ifc_second_operand ) {
             // TODO: Log error
             return {};
         }
 
-        const auto operand1 = this->ConvertBooleanOperand( ifc_first_operand );
-        const auto operand2 = this->ConvertBooleanOperand( ifc_second_operand );
+        auto operand1 = this->ConvertBooleanOperand( ifc_first_operand );
+        auto operand2 = this->ConvertBooleanOperand( ifc_second_operand );
 
-        // TODO: Style
+        const auto styles = this->m_styleConverter->GetStyles( booleanResult );
+        this->m_adapter->AddStyles( &operand1, styles );
+        this->m_adapter->AddStyles( &operand2, styles );
 
         // TODO: Rework IfcBooleanClippingResult (and IfcHalfSpaceSolid)
-//                shared_ptr<IfcBooleanClippingResult> boolean_clipping_result = dynamic_pointer_cast<IfcBooleanClippingResult>( bool_result );
-//                if( boolean_clipping_result ) {
-//                    return operand2;
-//                }
+        //                shared_ptr<IfcBooleanClippingResult> boolean_clipping_result = dynamic_pointer_cast<IfcBooleanClippingResult>( bool_result );
+        //                if( boolean_clipping_result ) {
+        //                    return operand2;
+        //                }
 
         switch( ifc_boolean_operator->m_enum ) {
         case IfcBooleanOperator::ENUM_UNION:
@@ -268,13 +274,16 @@ private:
     std::vector<TMesh> ConvertCsgSolid( const std::shared_ptr<IfcCsgSolid>& csgSolid ) {
         const auto& csgSelect = csgSolid->m_TreeRootExpression;
         const auto booleanResult = dynamic_pointer_cast<IfcBooleanResult>( csgSelect );
+        std::vector<TMesh> result;
         if( booleanResult ) {
-            return this->ConvertBooleanResult( booleanResult );
+            result = this->ConvertBooleanResult( booleanResult );
         }
         const auto csgPrimitive3d = dynamic_pointer_cast<IfcCsgPrimitive3D>( csgSelect );
         if( csgPrimitive3d ) {
-            return this->ConvertCsgPrimitive3D( csgPrimitive3d );
+            result = this->ConvertCsgPrimitive3D( csgPrimitive3d );
         }
+        const auto styles = this->m_styleConverter->GetStyles( csgSolid );
+        this->m_adapter->AddStyles( &result, styles );
         // TODO: Log error
         return {};
     }
@@ -451,7 +460,8 @@ private:
             result = this->ConvertSphere( sphere );
         }
 
-        // TODO: Style
+        const auto styles = this->m_styleConverter->GetStyles( csgPrimitive );
+        this->m_adapter->AddStyles( &result, styles );
 
         // TODO: Log error
         return result;

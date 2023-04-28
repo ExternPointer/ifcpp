@@ -137,20 +137,22 @@ private:
         this->m_adapter->Transform( &polylines, matrix );
 
         const auto opening = this->ConvertRelatedOpening( object );
-        meshes = this->m_adapter->ComputeDifference( meshes, opening );
+        if( !opening.empty() ) {
+            meshes = this->m_adapter->ComputeDifference( meshes, opening );
+        }
 
-        if( std::dynamic_pointer_cast<IfcWall>( object ) ) {
-            auto style = std::make_shared<Style>();
-            style->m_type = Style::SURFACE_FRONT;
-            style->m_color = { 231.0f / 255.0f, 219.0f / 255.0f, 169.0f / 255.0f, 1.0f };
-            this->m_adapter->AddStyles( &meshes, { style } );
-        }
-        if( std::dynamic_pointer_cast<IfcSlab>( object ) ) {
-            auto style = std::make_shared<Style>();
-            style->m_type = Style::SURFACE_FRONT;
-            style->m_color = { 140.0f / 255.0f, 140.0f / 255.0f, 140.0f / 255.0f, 1.0f };
-            this->m_adapter->AddStyles( &meshes, { style } );
-        }
+//        if( std::dynamic_pointer_cast<IfcWall>( object ) ) {
+//            auto style = std::make_shared<Style>();
+//            style->m_type = Style::SURFACE_FRONT;
+//            style->m_color = { 231.0f / 255.0f, 219.0f / 255.0f, 169.0f / 255.0f, 1.0f };
+//            this->m_adapter->AddStyles( &meshes, { style } );
+//        }
+//        if( std::dynamic_pointer_cast<IfcSlab>( object ) ) {
+//            auto style = std::make_shared<Style>();
+//            style->m_type = Style::SURFACE_FRONT;
+//            style->m_color = { 140.0f / 255.0f, 140.0f / 255.0f, 140.0f / 255.0f, 1.0f };
+//            this->m_adapter->AddStyles( &meshes, { style } );
+//        }
 
         return this->m_adapter->CreateEntity( object, meshes, polylines );
     }

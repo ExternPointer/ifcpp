@@ -12,6 +12,76 @@
 namespace ifcpp {
 
 template<CVector TVector>
+class BoundingBox {
+    using AVector = VectorAdapter<TVector>;
+
+public:
+    TVector m_min = AVector::New( std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max() );
+    TVector m_max = AVector::New( -std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), -std::numeric_limits<float>::max() );
+    BoundingBox() = default;
+    explicit BoundingBox( const std::vector<TVector>& points ) {
+        for( const auto v: points ) {
+            this->m_min.x = std::min( this->m_min.x, v.x );
+            this->m_min.y = std::min( this->m_min.y, v.y );
+            this->m_min.z = std::min( this->m_min.z, v.z );
+            this->m_max.x = std::max( this->m_max.x, v.x );
+            this->m_max.y = std::max( this->m_max.y, v.y );
+            this->m_max.z = std::max( this->m_max.z, v.z );
+        }
+    }
+    void AddPoints( const std::vector<TVector>& points ) {
+        for( const auto v: points ) {
+            this->m_min.x = std::min( this->m_min.x, v.x );
+            this->m_min.y = std::min( this->m_min.y, v.y );
+            this->m_min.z = std::min( this->m_min.z, v.z );
+            this->m_max.x = std::max( this->m_max.x, v.x );
+            this->m_max.y = std::max( this->m_max.y, v.y );
+            this->m_max.z = std::max( this->m_max.z, v.z );
+        }
+    }
+    TVector GetExtents() const {
+        return this->m_max - this->m_min;
+    }
+};
+
+template<CVector TVector>
+class Plane {
+    using AVector = VectorAdapter<TVector>;
+
+public:
+    TVector m_origin;
+    TVector m_normal;
+    TVector m_up;
+    TVector m_right;
+    Plane( const TVector& origin, const TVector& normal ) {
+        this->m_origin = origin;
+        this->m_normal = normal;
+        if( AVector::Len2( normal ) < 1e-3 ) {
+            this->m_normal = AVector::New( 0, 0, 1 );
+        }
+        this->m_right = AVector::Normalized( AVector::Cross( AVector::New( 0, 0, 1 ), this->m_normal ) );
+        if( AVector::Len2( this->m_right ) < 1e-3 ) {
+            this->m_right = AVector::Normalized( AVector::Cross( this->m_normal, AVector::New( 0, -1, 0 ) ) );
+        }
+        this->m_up = AVector::Cross( this->m_normal, this->m_right );
+    }
+    std::vector<TVector> GetProjection( const std::vector<TVector>& points ) const {
+        std::vector<TVector> result;
+        for( const auto& v: points ) {
+            result.push_back( AVector::New( AVector::Dot( this->m_right, v - this->m_origin ), AVector::Dot( this->m_up, v - this->m_origin ) ) );
+        }
+        return result;
+    }
+    std::vector<TVector> GetUnProjected( const std::vector<TVector>& points ) const {
+        std::vector<TVector> result;
+        for( const auto& v: points ) {
+            result.push_back( this->m_right * v.x + this->m_up * v.y + this->m_origin );
+        }
+        return result;
+    }
+};
+
+template<CVector TVector>
 class GeomUtils {
     using AVector = VectorAdapter<TVector>;
     using TMatrix = Matrix<TVector>;
@@ -36,14 +106,14 @@ public:
         bool isParallel = false;
         bool isOnOneLine = false;
     };
-    struct Line {
+    struct Line2d {
         float a = 0, b = 0, c = 0;
-        Line( float _a, float _b, float _c )
+        Line2d( float _a, float _b, float _c )
             : a( _a )
             , b( _b )
             , c( _c ) {
         }
-        Line( TVector p, TVector q ) {
+        Line2d( TVector p, TVector q ) {
             a = p.y - q.y;
             b = q.x - p.x;
             c = -a * p.x - b * p.y;
@@ -85,10 +155,10 @@ public:
         const auto f = AVector::Normalized( b - a );
         const auto [ l, r ] = this->ProjectEdge( a, b, f );
         const auto p = AVector::Dot( f, point );
-        Line line( a, b );
+        Line2d line( a, b );
         return line.Distance( point ) < this->m_parameters->m_epsilon && l <= p && p <= r;
     }
-    Intersection Intersect( const TVector& a1, const TVector& b1, const TVector& a2, const TVector& b2 ) {
+    Intersection Intersect2d( const TVector& a1, const TVector& b1, const TVector& a2, const TVector& b2 ) {
         Intersection result;
 
         TVector f1 = AVector::Normalized( b1 - a1 );
@@ -114,8 +184,8 @@ public:
                 result.right = f1 * std::min( rp1, rp2 );
             }
         } else if( !result.isParallel ) {
-            Line m( a1, b1 );
-            Line n( a2, b2 );
+            Line2d m( a1, b1 );
+            Line2d n( a2, b2 );
             float zn = m.a * n.b - m.b * n.a;
             result.left.x = result.right.x = -( m.c * n.b - m.b * n.c ) / zn;
             result.left.y = result.right.y = -( m.a * n.c - m.c * n.a ) / zn;
@@ -123,44 +193,12 @@ public:
         }
         return result;
     }
-    std::vector<TVector> SimplifyLoop( const std::vector<TVector>& loop ) {
+    std::vector<TVector> SimplifyLoop( std::vector<TVector> loop ) {
         // FIXME: Problems on loops with holes
-       // return loop;
+        // return loop;
 
-                std::vector<TVector> result;
-                result.reserve( loop.size() );
-                if( loop.empty() ) {
-                    return result;
-                }
-                result.push_back( loop[ 0 ] );
-                for( const auto& point: loop ) {
-                    if( !AVector::IsNearlyEqual( point, result[ result.size() - 1 ] ) ) {
-                        result.push_back( point );
-                    }
-                }
-                if( result.size() > 2 && AVector::IsNearlyEqual( result[ 0 ], result[ result.size() - 1 ] ) ) {
-                    result.pop_back();
-                }
+        const auto restoreInfo = this->MoveToOriginAndScale( &loop );
 
-                if( result.size() < 3 ) {
-                    return result;
-                }
-                result.push_back( result[ 0 ] );
-                result.insert( std::begin( result ), result[ result.size() - 2 ] );
-                for( int i = 1; i < result.size() - 1; i++ ) {
-                    const auto a = result[ i - 1 ] - result[ i ];
-                    const auto b = result[ i + 1 ] - result[ i ];
-                    const auto c = AVector::Cross( a, b );
-                    if( AVector::Len2( c ) < this->m_parameters->m_epsilon ) {
-                        result.erase( std::begin( result ) + i );
-                        i--;
-                    }
-                }
-                result.erase( std::begin( result ) );
-                result.pop_back();
-                return result;
-    }
-    std::vector<TVector> SimplifyCurve( const std::vector<TVector>& loop ) {
         std::vector<TVector> result;
         result.reserve( loop.size() );
         if( loop.empty() ) {
@@ -172,7 +210,47 @@ public:
                 result.push_back( point );
             }
         }
+        if( result.size() > 2 && AVector::IsNearlyEqual( result[ 0 ], result[ result.size() - 1 ] ) ) {
+            result.pop_back();
+        }
+
         if( result.size() < 3 ) {
+            this->Restore( &result, restoreInfo );
+            return result;
+        }
+
+        result.push_back( result[ 0 ] );
+        result.insert( std::begin( result ), result[ result.size() - 2 ] );
+        for( int i = 1; i < result.size() - 1; i++ ) {
+            const auto a = result[ i - 1 ] - result[ i ];
+            const auto b = result[ i + 1 ] - result[ i ];
+            const auto c = AVector::Cross( a, b );
+            if( AVector::Len2( c ) < this->m_parameters->m_epsilon ) {
+                result.erase( std::begin( result ) + i );
+                i--;
+            }
+        }
+        result.erase( std::begin( result ) );
+        result.pop_back();
+
+        this->Restore( &result, restoreInfo );
+        return result;
+    }
+    std::vector<TVector> SimplifyCurve( std::vector<TVector> curve ) {
+        const auto restoreInfo = this->MoveToOriginAndScale( &curve );
+        std::vector<TVector> result;
+        result.reserve( curve.size() );
+        if( curve.empty() ) {
+            return result;
+        }
+        result.push_back( curve[ 0 ] );
+        for( const auto& point: curve ) {
+            if( !AVector::IsNearlyEqual( point, result[ result.size() - 1 ] ) ) {
+                result.push_back( point );
+            }
+        }
+        if( result.size() < 3 ) {
+            this->Restore( &result, restoreInfo );
             return result;
         }
         for( int i = 1; i < result.size() - 1; i++ ) {
@@ -184,6 +262,7 @@ public:
                 i--;
             }
         }
+        this->Restore( &result, restoreInfo );
         return result;
     }
     void AppendToLoop( std::vector<TVector>* loop, const std::vector<TVector>& toAppend ) {
@@ -235,12 +314,24 @@ public:
         return result;
     }
     std::vector<TVector> CombineLoops( std::vector<std::vector<TVector>> loops ) {
-        while( !loops.empty() && loops[ 0 ].empty() ) {
+        const auto restoreInfo = this->MoveToOriginAndScale( &loops );
+
+        while( !loops.empty() && loops[ 0 ].size() < 3 ) {
             loops.erase( std::begin( loops ) );
         }
+
         if( loops.empty() ) {
             return {};
         }
+
+        auto planeNormal = this->ComputePolygonNormal( loops[ 0 ] );
+        const Plane<TVector> p( loops[0][0], planeNormal );
+
+
+        for( auto& l: loops ) {
+            l = p.GetProjection( l );
+        }
+
 
         for( auto& l: loops ) {
             if( !l.empty() ) {
@@ -271,10 +362,11 @@ public:
 
                         bool isIntersects = false;
                         for( int i = 1; i < result.size(); i++ ) {
-                            const auto intersection = this->Intersect( result[ i - 1 ], result[ i ], p1, p2 );
+                            const auto intersection = this->Intersect2d( result[ i - 1 ], result[ i ], p1, p2 );
 
                             if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) ||
-                                AVector::IsNearlyEqual( intersection.left, p2 ) ) {
+                                AVector::IsNearlyEqual( intersection.left, p2 ) || AVector::IsNearlyEqual( intersection.left, result[ i - 1 ] ) ||
+                                AVector::IsNearlyEqual( intersection.left, result[ i ] ) ) {
                                 continue;
                             }
                             if( intersection.isIntersects ) {
@@ -282,10 +374,11 @@ public:
                             }
                         }
                         for( int j = 0; j < loops.size(); j++ ) {
-                            for( int i = 1; i < loops[j].size(); i++ ) {
-                                const auto intersection = this->Intersect( loops[ j ][ i - 1 ], loops[ j ][ i ], p1, p2 );
+                            for( int i = 1; i < loops[ j ].size(); i++ ) {
+                                const auto intersection = this->Intersect2d( loops[ j ][ i - 1 ], loops[ j ][ i ], p1, p2 );
                                 if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) ||
-                                    AVector::IsNearlyEqual( intersection.left, p2 ) ) {
+                                    AVector::IsNearlyEqual( intersection.left, p2 ) || AVector::IsNearlyEqual( intersection.left, loops[ j ][ i - 1 ] ) ||
+                                    AVector::IsNearlyEqual( intersection.left, loops[ j ][ i ] ) ) {
                                     continue;
                                 }
                                 if( intersection.isIntersects ) {
@@ -309,8 +402,8 @@ public:
             }
 
             if( inResultIdx < 0 || loopIdx < 0 || pointIdx < 0 ) {
-                // TODO: Log error
-                return result;
+                // LOG ERROR
+                break;
             }
 
             std::vector<TVector> loopToInsert( std::begin( loops[ loopIdx ] ) + pointIdx, std::end( loops[ loopIdx ] ) );
@@ -319,17 +412,22 @@ public:
             result.insert( std::begin( result ) + inResultIdx, result[ inResultIdx ] );
             result.insert( std::begin( result ) + inResultIdx + 1, std::begin( loopToInsert ), std::end( loopToInsert ) );
         }
+        result = p.GetUnProjected( result );
+        this->Restore( &result, restoreInfo );
         return this->SimplifyLoop( result );
     }
     std::vector<TVector> IncorporateHoles( const std::vector<TVector>& outer, std::vector<std::vector<TVector>> inners ) {
-        const auto outerNormal = this->ComputePlaneNormal( outer );
+        if( inners.empty() ) {
+            return outer;
+        }
+        const auto outerNormal = this->ComputePolygonNormal( outer );
         for( auto& inner: inners ) {
-            const auto innerNormal = this->ComputePlaneNormal( inner );
+            const auto innerNormal = this->ComputePolygonNormal( inner );
             if( AVector::Dot( outerNormal, innerNormal ) > 0 ) {
                 std::reverse( inner.begin(), inner.end() );
             }
         }
-        const auto inner = this->CombineLoops( inners );
+        auto inner = this->CombineLoops( inners );
         return this->CombineLoops( { outer, inner } );
     }
     std::vector<TVector> BuildEllipse( float radius1, float radius2, float startAngle, float openingAngle, int verticesCount,
@@ -394,17 +492,128 @@ public:
         return result;
     }
 
-    TVector ComputePlaneNormal( const std::vector<TVector>& pointsOnPlane ) {
-        // FIXME
-        if( pointsOnPlane.size() < 3 ) {
+    TVector ComputePolygonNormal( std::vector<TVector> loop ) {
+        this->MoveToOriginAndScale( &loop, true );
+
+        if( loop.size() < 3 ) {
             // TODO: Log error
             return AVector::New();
         }
-        TVector result = AVector::New();
-        for( int i = 1; i < pointsOnPlane.size() - 1; i++ ) {
-            result = result - AVector::Cross( pointsOnPlane[ i - 1 ] - pointsOnPlane[ i ], pointsOnPlane[ i + 1 ] - pointsOnPlane[ i ] );
+
+        TVector planeNormal = AVector::New();
+
+        for( const auto& a: loop ) {
+            for( const auto& b: loop ) {
+                for( const auto& c: loop ) {
+                    const auto normal = AVector::Cross( b - a, c - b );
+                    if( AVector::Len2( normal ) > AVector::Len2( planeNormal ) ) {
+                        planeNormal = normal;
+                    }
+                }
+            }
         }
-        return AVector::Normalized( result );
+
+        planeNormal = AVector::Normalized( planeNormal );
+
+        Plane<TVector> p( loop[ 0 ], planeNormal );
+        loop = p.GetProjection( loop );
+        this->MoveToOriginAndScale( &loop );
+        loop.push_back( loop[ 0 ] );
+
+        float s = 0.0f;
+        for( int i = 1; i < loop.size(); i++ ) {
+            const auto& v1 = loop[ i - 1 ];
+            const auto& v2 = loop[ i ];
+            s += ( v1.y + v2.y ) * 0.5f * ( v1.x - v2.x );
+        }
+
+        if( s < 0 ) {
+            planeNormal = planeNormal * -1.0f;
+        }
+
+        return planeNormal;
+    }
+
+    //         offset   scale
+    std::tuple<TVector, TVector> MoveToOriginAndScale( std::vector<TVector>* points, bool saveProportions = false ) {
+        BoundingBox<TVector> bbox( *points );
+        const auto offset = -bbox.m_min;
+        const auto e = bbox.GetExtents();
+        const float t = 9.0f;
+        auto scale = AVector::New( e.x > 0 ? t / e.x : 1.0f, e.y > 0 ? t / e.y : 1.0f, e.z > 0 ? t / e.z : 1.0f );
+
+        if( saveProportions ) {
+            scale.x = std::max( std::max( scale.x, scale.y ), scale.z );
+            scale.y = scale.z = scale.x;
+        }
+
+        for( auto& v: *points ) {
+            v = ( v + offset );
+            v.x *= scale.x;
+            v.y *= scale.y;
+            v.z *= scale.z;
+        }
+
+        return { offset, scale };
+    }
+
+    void Restore( std::vector<TVector>* points, const std::tuple<TVector, TVector>& offsetAndScale ) {
+        auto [ offset, scale ] = offsetAndScale;
+        offset = -offset;
+        scale.x = 1.0f / scale.x;
+        scale.y = 1.0f / scale.y;
+        scale.z = 1.0f / scale.z;
+
+        for( auto& v: *points ) {
+            v.x *= scale.x;
+            v.y *= scale.y;
+            v.z *= scale.z;
+            v = ( v + offset );
+        }
+    }
+
+    std::tuple<TVector, TVector> MoveToOriginAndScale( std::vector<std::vector<TVector>>* points, bool saveProportions = false ) {
+        BoundingBox<TVector> bbox;
+        for( const auto& l: *points ) {
+            bbox.AddPoints( l );
+        }
+        const auto offset = -bbox.m_min;
+        const auto e = bbox.GetExtents();
+        const float t = 9.0f;
+        auto scale = AVector::New( e.x > 0 ? t / e.x : 1.0f, e.y > 0 ? t / e.y : 1.0f, e.z > 0 ? t / e.z : 1.0f );
+
+        if( saveProportions ) {
+            scale.x = std::max( std::max( scale.x, scale.y ), scale.z );
+            scale.y = scale.z = scale.x;
+        }
+
+        for( auto& l: *points ) {
+            for( auto& v: l ) {
+                v = ( v + offset );
+                v.x *= scale.x;
+                v.y *= scale.y;
+                v.z *= scale.z;
+            }
+        }
+
+        return { offset, scale };
+    }
+
+    void Restore( std::vector<std::vector<TVector>>* points, const std::tuple<TVector, TVector>& offsetAndScale ) {
+        auto [ offset, scale ] = offsetAndScale;
+        offset = -offset;
+        scale.x = 1.0f / scale.x;
+        scale.y = 1.0f / scale.y;
+        scale.z = 1.0f / scale.z;
+
+        for( auto& l: *points ) {
+            for( auto& v: l ) {
+                v.x *= scale.x;
+                v.y *= scale.y;
+                v.z *= scale.z;
+                v = ( v + offset );
+            }
+        }
     }
 };
 

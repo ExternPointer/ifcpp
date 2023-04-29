@@ -248,8 +248,6 @@ private:
 
         auto loops = this->m_geometryConverter->ConvertFaces( manifoldSolidBrep->m_Outer->m_CfsFaces );
 
-        // TODO: Check points order
-
         const auto result = Helpers::CreateMesh( this->m_adapter, loops );
 
         const auto facetedBrep = dynamic_pointer_cast<IfcFacetedBrep>( manifoldSolidBrep );

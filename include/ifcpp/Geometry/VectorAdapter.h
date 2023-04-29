@@ -19,7 +19,7 @@ public:
     }
 
     static float Len( const TVector& v ) {
-        return sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
+        return sqrtf( Len2( v ) );
     }
 
     static float Len2( const TVector& v ) {
@@ -27,17 +27,14 @@ public:
     }
 
     static TVector Normalized( const TVector& v ) {
-        float len = VectorAdapter::Len( v );
-        if( len <= 1e-6 ) {
-            return v;
-        }
-        float invLength = 1.0f / len;
-        return VectorAdapter::New( v.x * invLength, v.y * invLength, v.z * invLength );
+        TVector result = v;
+        VectorAdapter::Normalize( &result );
+        return result;
     }
 
     static void Normalize( TVector* v ) {
         float len = VectorAdapter::Len( *v );
-        if( len <= 1e-12 ) {
+        if( len <= 1e-3 ) {
             return;
         }
         float invLength = 1.0f / len;

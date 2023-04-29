@@ -56,11 +56,11 @@ public:
     Plane( const TVector& origin, const TVector& normal ) {
         this->m_origin = origin;
         this->m_normal = normal;
-        if( AVector::Len2( normal ) < 1e-3 ) {
-            this->m_normal = AVector::New( 0, 0, 1 );
+        if( AVector::Len2( normal ) < 1e-6 ) {
+            this->m_normal = AVector::Normalized( AVector::New( 1, 1, 1 ) );
         }
         this->m_right = AVector::Normalized( AVector::Cross( AVector::New( 0, 0, 1 ), this->m_normal ) );
-        if( AVector::Len2( this->m_right ) < 1e-3 ) {
+        if( AVector::Len2( this->m_right ) < 1e-6 ) {
             this->m_right = AVector::Normalized( AVector::Cross( this->m_normal, AVector::New( 0, -1, 0 ) ) );
         }
         this->m_up = AVector::Cross( this->m_normal, this->m_right );
@@ -194,9 +194,7 @@ public:
         return result;
     }
     std::vector<TVector> SimplifyLoop( std::vector<TVector> loop ) {
-        // FIXME: Problems on loops with holes
-        // return loop;
-
+        return loop;
         const auto restoreInfo = this->MoveToOriginAndScale( &loop );
 
         std::vector<TVector> result;
@@ -237,6 +235,7 @@ public:
         return result;
     }
     std::vector<TVector> SimplifyCurve( std::vector<TVector> curve ) {
+        return curve;
         const auto restoreInfo = this->MoveToOriginAndScale( &curve );
         std::vector<TVector> result;
         result.reserve( curve.size() );
@@ -361,31 +360,31 @@ public:
                         }
 
                         bool isIntersects = false;
-                        for( int i = 1; i < result.size(); i++ ) {
-                            const auto intersection = this->Intersect2d( result[ i - 1 ], result[ i ], p1, p2 );
-
-                            if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) ||
-                                AVector::IsNearlyEqual( intersection.left, p2 ) || AVector::IsNearlyEqual( intersection.left, result[ i - 1 ] ) ||
-                                AVector::IsNearlyEqual( intersection.left, result[ i ] ) ) {
-                                continue;
-                            }
-                            if( intersection.isIntersects ) {
-                                isIntersects = true;
-                            }
-                        }
-                        for( int j = 0; j < loops.size(); j++ ) {
-                            for( int i = 1; i < loops[ j ].size(); i++ ) {
-                                const auto intersection = this->Intersect2d( loops[ j ][ i - 1 ], loops[ j ][ i ], p1, p2 );
-                                if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) ||
-                                    AVector::IsNearlyEqual( intersection.left, p2 ) || AVector::IsNearlyEqual( intersection.left, loops[ j ][ i - 1 ] ) ||
-                                    AVector::IsNearlyEqual( intersection.left, loops[ j ][ i ] ) ) {
-                                    continue;
-                                }
-                                if( intersection.isIntersects ) {
-                                    isIntersects = true;
-                                }
-                            }
-                        }
+//                        for( int i = 1; i < result.size(); i++ ) {
+//                            const auto intersection = this->Intersect2d( result[ i - 1 ], result[ i ], p1, p2 );
+//
+//                            if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) ||
+//                                AVector::IsNearlyEqual( intersection.left, p2 ) || AVector::IsNearlyEqual( intersection.left, result[ i - 1 ] ) ||
+//                                AVector::IsNearlyEqual( intersection.left, result[ i ] ) ) {
+//                                continue;
+//                            }
+//                            if( intersection.isIntersects ) {
+//                                isIntersects = true;
+//                            }
+//                        }
+//                        for( int j = 0; j < loops.size(); j++ ) {
+//                            for( int i = 1; i < loops[ j ].size(); i++ ) {
+//                                const auto intersection = this->Intersect2d( loops[ j ][ i - 1 ], loops[ j ][ i ], p1, p2 );
+//                                if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) ||
+//                                    AVector::IsNearlyEqual( intersection.left, p2 ) || AVector::IsNearlyEqual( intersection.left, loops[ j ][ i - 1 ] ) ||
+//                                    AVector::IsNearlyEqual( intersection.left, loops[ j ][ i ] ) ) {
+//                                    continue;
+//                                }
+//                                if( intersection.isIntersects ) {
+//                                    isIntersects = true;
+//                                }
+//                            }
+//                        }
                         if( isIntersects ) {
                             continue;
                         }
@@ -427,8 +426,8 @@ public:
                 std::reverse( inner.begin(), inner.end() );
             }
         }
-        auto inner = this->CombineLoops( inners );
-        return this->CombineLoops( { outer, inner } );
+        inners.insert( inners.begin(), outer );
+        return this->CombineLoops( inners );
     }
     std::vector<TVector> BuildEllipse( float radius1, float radius2, float startAngle, float openingAngle, int verticesCount,
                                        TVector center = AVector::New() ) const {
@@ -493,7 +492,7 @@ public:
     }
 
     TVector ComputePolygonNormal( std::vector<TVector> loop ) {
-        this->MoveToOriginAndScale( &loop, true );
+        //this->MoveToOriginAndScale( &loop, true );
 
         if( loop.size() < 3 ) {
             // TODO: Log error
@@ -528,7 +527,7 @@ public:
         }
 
         if( s < 0 ) {
-            planeNormal = planeNormal * -1.0f;
+            planeNormal = -planeNormal;
         }
 
         return planeNormal;

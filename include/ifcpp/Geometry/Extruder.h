@@ -30,7 +30,7 @@ public:
         if( profile.empty() ) {
             return {};
         }
-        // TODO: It is not important to simplify profile here
+        // TODO: It is not important to simplify profile heres
         if( asClosed ) {
             profile = this->m_geomUtils->SimplifyLoop( profile );
             profile.push_back( profile[ 0 ] );

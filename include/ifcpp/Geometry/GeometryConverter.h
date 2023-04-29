@@ -137,17 +137,21 @@ public:
             if( bound->m_Orientation && !bound->m_Orientation->m_value ) {
                 std::reverse( loop.begin(), loop.end() );
             }
-            loops.push_back( loop );
+            if( std::dynamic_pointer_cast<IfcFaceOuterBound>( bound ) ) {
+                outer = loop;
+            } else {
+                loops.push_back( loop );
+            }
         }
-        loops = this->m_geomUtils->BringToFrontOuterLoop( loops );
-        if( loops.empty() ) {
-            return {};
-        }
+//        if( loops.empty() ) {
+//            return {};
+//        }
 
-        outer = loops[0];
-        std::copy( std::begin( loops ) + 1, std::end( loops ), std::back_inserter( inners ) );
+        //loops = this->m_geomUtils->BringToFrontOuterLoop( loops );
+        //outer = loops[0];
+        //std::copy( std::begin( loops ) + 1, std::end( loops ), std::back_inserter( inners ) );
 
-        return this->m_geomUtils->IncorporateHoles( outer, inners );
+        return this->m_geomUtils->IncorporateHoles( outer, loops );
     }
 
     std::vector<TLoop> ConvertFaces( const std::vector<std::shared_ptr<IfcFace>>& loops ) {

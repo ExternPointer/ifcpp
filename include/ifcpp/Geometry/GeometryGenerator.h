@@ -159,9 +159,9 @@ private:
         std::vector<TMesh> meshes;
         std::vector<TPolyline> polylines;
 
-        if( !std::dynamic_pointer_cast<IfcWindow>( object )) {
-            return {};
-        }
+//        if( std::dynamic_pointer_cast<IfcWindow>( object )) {
+//            return {};
+//        }
 
         for( const auto& item: product->m_Representation->m_Representations ) {
             const auto [ m, p ] = this->ConvertRepresentation( item );

@@ -194,7 +194,6 @@ public:
         return result;
     }
     std::vector<TVector> SimplifyLoop( std::vector<TVector> loop ) {
-        return loop;
         const auto restoreInfo = this->MoveToOriginAndScale( &loop );
 
         std::vector<TVector> result;
@@ -235,7 +234,6 @@ public:
         return result;
     }
     std::vector<TVector> SimplifyCurve( std::vector<TVector> curve ) {
-        return curve;
         const auto restoreInfo = this->MoveToOriginAndScale( &curve );
         std::vector<TVector> result;
         result.reserve( curve.size() );
@@ -313,6 +311,28 @@ public:
         return result;
     }
     std::vector<TVector> CombineLoops( std::vector<std::vector<TVector>> loops ) {
+//        if( loops.size() == 0 ) {
+//            return {};
+//        }
+//
+//        else if( loops.size() == 1 ) {
+//            return loops[ 0 ];
+//        }
+//
+//        else if( loops.size() == 2 ) {
+//            auto outer = loops[0];
+//            auto inner = loops[1];
+//
+//            auto result = outer;
+//            result.push_back(result[ result.size() - 1]);
+//            inner.push_back( inner[ 0 ]);
+//            result.insert( result.end() - 1, inner.begin(), inner.end() );
+//            return result;
+//        }
+//
+//        return {};
+
+
         const auto restoreInfo = this->MoveToOriginAndScale( &loops );
 
         while( !loops.empty() && loops[ 0 ].size() < 3 ) {
@@ -324,7 +344,7 @@ public:
         }
 
         auto planeNormal = this->ComputePolygonNormal( loops[ 0 ] );
-        const Plane<TVector> p( loops[0][0], planeNormal );
+        const Plane<TVector> p( loops[ 0 ][ 0 ], planeNormal );
 
 
         for( auto& l: loops ) {
@@ -360,31 +380,30 @@ public:
                         }
 
                         bool isIntersects = false;
-//                        for( int i = 1; i < result.size(); i++ ) {
-//                            const auto intersection = this->Intersect2d( result[ i - 1 ], result[ i ], p1, p2 );
-//
-//                            if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) ||
-//                                AVector::IsNearlyEqual( intersection.left, p2 ) || AVector::IsNearlyEqual( intersection.left, result[ i - 1 ] ) ||
-//                                AVector::IsNearlyEqual( intersection.left, result[ i ] ) ) {
-//                                continue;
-//                            }
-//                            if( intersection.isIntersects ) {
-//                                isIntersects = true;
-//                            }
-//                        }
-//                        for( int j = 0; j < loops.size(); j++ ) {
-//                            for( int i = 1; i < loops[ j ].size(); i++ ) {
-//                                const auto intersection = this->Intersect2d( loops[ j ][ i - 1 ], loops[ j ][ i ], p1, p2 );
-//                                if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) ||
-//                                    AVector::IsNearlyEqual( intersection.left, p2 ) || AVector::IsNearlyEqual( intersection.left, loops[ j ][ i - 1 ] ) ||
-//                                    AVector::IsNearlyEqual( intersection.left, loops[ j ][ i ] ) ) {
-//                                    continue;
-//                                }
-//                                if( intersection.isIntersects ) {
-//                                    isIntersects = true;
-//                                }
-//                            }
-//                        }
+                        //                        for( int i = 1; i < result.size(); i++ ) {
+                        //                            const auto intersection = this->Intersect2d( result[ i - 1 ], result[ i ], p1, p2 );
+                        //
+                        //                            if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) ||
+                        //                                AVector::IsNearlyEqual( intersection.left, p2 ) || AVector::IsNearlyEqual( intersection.left, result[
+                        //                                i - 1 ] ) || AVector::IsNearlyEqual( intersection.left, result[ i ] ) ) { continue;
+                        //                            }
+                        //                            if( intersection.isIntersects ) {
+                        //                                isIntersects = true;
+                        //                            }
+                        //                        }
+                        //                        for( int j = 0; j < loops.size(); j++ ) {
+                        //                            for( int i = 1; i < loops[ j ].size(); i++ ) {
+                        //                                const auto intersection = this->Intersect2d( loops[ j ][ i - 1 ], loops[ j ][ i ], p1, p2 );
+                        //                                if( intersection.isOnOneLine || AVector::IsNearlyEqual( intersection.left, p1 ) ||
+                        //                                    AVector::IsNearlyEqual( intersection.left, p2 ) || AVector::IsNearlyEqual( intersection.left,
+                        //                                    loops[ j ][ i - 1 ] ) || AVector::IsNearlyEqual( intersection.left, loops[ j ][ i ] ) ) {
+                        //                                    continue;
+                        //                                }
+                        //                                if( intersection.isIntersects ) {
+                        //                                    isIntersects = true;
+                        //                                }
+                        //                            }
+                        //                        }
                         if( isIntersects ) {
                             continue;
                         }
@@ -405,8 +424,21 @@ public:
                 break;
             }
 
+//            std::vector<TVector> loopToInsert;
+//            for( int i = pointIdx; i < loops[ loopIdx ].size() - 1; i++ ) {
+//
+//            }
+
+            loops[ loopIdx ].pop_back();
+            if( pointIdx == loops[ loopIdx ].size() ) {
+                pointIdx = 0;
+            }
+
             std::vector<TVector> loopToInsert( std::begin( loops[ loopIdx ] ) + pointIdx, std::end( loops[ loopIdx ] ) );
             std::copy( std::begin( loops[ loopIdx ] ), std::begin( loops[ loopIdx ] ) + pointIdx, std::back_inserter( loopToInsert ) );
+
+            loopToInsert.push_back( loopToInsert[0] );
+
             loops.erase( std::begin( loops ) + loopIdx );
             result.insert( std::begin( result ) + inResultIdx, result[ inResultIdx ] );
             result.insert( std::begin( result ) + inResultIdx + 1, std::begin( loopToInsert ), std::end( loopToInsert ) );
@@ -427,7 +459,50 @@ public:
             }
         }
         inners.insert( inners.begin(), outer );
-        return this->CombineLoops( inners );
+        auto result = this->CombineLoops( inners );
+
+        std::vector<char> outerChar;
+        std::vector<char> innerChar;
+
+        auto in = inners[ 1 ];
+        for( int i = 0; i < outer.size(); i++ ) {
+            outerChar.push_back( 'A' + i );
+        }
+        for( int i = 0; i < in.size(); i++ ) {
+            innerChar.push_back( 'a' + i );
+        }
+
+        std::string str;
+
+        for( int i = 0; i < result.size(); i++ ) {
+            bool isOk = false;
+            for( int j = 0; j < outerChar.size(); j++ ) {
+                if( result[ i ] == outer[ j ] ) {
+                    str += std::string( { outerChar[ j ] } );
+                    isOk = true;
+                    break;
+                }
+            }
+            if( isOk )
+                continue;
+
+            for( int j = 0; j < innerChar.size(); j++ ) {
+                if( result[ i ] == in[ j ] ) {
+                    str += std::string( { innerChar[ j ] } );
+                    isOk = true;
+                    break;
+                }
+            }
+
+            if( isOk )
+                continue;
+
+            str += std::string( { '-' } );
+        }
+
+        std::cout << str << "\n";
+
+        return result;
     }
     std::vector<TVector> BuildEllipse( float radius1, float radius2, float startAngle, float openingAngle, int verticesCount,
                                        TVector center = AVector::New() ) const {
@@ -492,7 +567,7 @@ public:
     }
 
     TVector ComputePolygonNormal( std::vector<TVector> loop ) {
-        //this->MoveToOriginAndScale( &loop, true );
+        // this->MoveToOriginAndScale( &loop, true );
 
         if( loop.size() < 3 ) {
             // TODO: Log error

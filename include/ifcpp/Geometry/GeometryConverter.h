@@ -154,8 +154,6 @@ public:
             }
         }
 
-        //std::reverse( outer.begin(), outer.end() );
-
         return this->m_geomUtils->IncorporateHoles( outer, loops );
     }
 

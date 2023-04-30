@@ -85,43 +85,12 @@ public:
     explicit GeomUtils( const std::shared_ptr<Parameters>& parameters )
         : m_parameters( parameters ) {
     }
-
     TVector Normal2d( const TVector& v ) {
         return AVector::Normalized( AVector::New( v.y, -v.x, 0 ) );
     }
     TVector Normal2d( const TVector& v1, const TVector& v2 ) {
         return Normal2d( v2 - v1 );
     }
-    struct Intersection {
-        TVector left;
-        TVector right;
-        bool isIntersects = false;
-        bool isParallel = false;
-        bool isOnOneLine = false;
-    };
-    struct Line2d {
-        float a = 0, b = 0, c = 0;
-        Line2d( float _a, float _b, float _c )
-            : a( _a )
-            , b( _b )
-            , c( _c ) {
-        }
-        Line2d( TVector p, TVector q ) {
-            a = p.y - q.y;
-            b = q.x - p.x;
-            c = -a * p.x - b * p.y;
-            Normalize();
-        }
-        void Normalize() {
-            double z = sqrt( a * a + b * b );
-            if( z > 0 ) {
-                a /= z, b /= z, c /= z;
-            }
-        }
-        float Distance( TVector p ) {
-            return fabsf( a * p.x + b * p.y + c );
-        }
-    };
     std::tuple<float, float> ProjectEdge( const TVector& a, const TVector& b, const TVector& axis ) {
         float l = AVector::Dot( axis, a );
         float r = AVector::Dot( axis, b );
@@ -147,44 +116,8 @@ public:
     bool IsPointOnEdge( const TVector& a, const TVector& b, const TVector& point ) {
         const auto f = AVector::Normalized( b - a );
         const auto [ l, r ] = this->ProjectEdge( a, b, f );
-        const auto p = AVector::Dot( f, point );
-        Line2d line( a, b );
-        return line.Distance( point ) < this->m_parameters->m_epsilon && l <= p && p <= r;
-    }
-    Intersection Intersect2d( const TVector& a1, const TVector& b1, const TVector& a2, const TVector& b2 ) {
-        Intersection result;
-
-        TVector f1 = AVector::Normalized( b1 - a1 );
-        TVector f2 = AVector::Normalized( b2 - a2 );
-        if( AVector::Dot( f1, f2 ) < 0 ) {
-            f2 = -f2;
-        }
-        auto [ lp1, rp1 ] = this->ProjectEdge( a1, b1, f1 );
-        auto [ lp2, rp2 ] = this->ProjectEdge( a2, b2, f2 );
-
-        result.isParallel = AVector::IsNearlyEqual( f1, f2, this->m_parameters->m_epsilon );
-        result.isOnOneLine = AVector::Len2( AVector::Cross( b1 - a1, a2 - a1 ) ) < this->m_parameters->m_epsilon &&
-            AVector::Len2( AVector::Cross( b1 - a1, b2 - a1 ) ) < this->m_parameters->m_epsilon;
-
-        if( result.isOnOneLine ) {
-            if( lp1 > lp2 ) {
-                std::swap( lp1, lp2 );
-                std::swap( rp1, rp2 );
-            }
-            if( rp1 > lp2 ) {
-                result.isIntersects = true;
-                result.left = f1 * lp2;
-                result.right = f1 * std::min( rp1, rp2 );
-            }
-        } else if( !result.isParallel ) {
-            Line2d m( a1, b1 );
-            Line2d n( a2, b2 );
-            float zn = m.a * n.b - m.b * n.a;
-            result.left.x = result.right.x = -( m.c * n.b - m.b * n.c ) / zn;
-            result.left.y = result.right.y = -( m.a * n.c - m.c * n.a ) / zn;
-            result.isIntersects = this->IsPointOnEdge( a1, b1, result.left ) && this->IsPointOnEdge( a2, b2, result.left );
-        }
-        return result;
+        const auto p = AVector::Dot( f, point - a );
+        return fabsf(AVector::Len( point - a ) - fabsf( p )) < this->m_parameters->m_epsilon && l <= p && p <= r;
     }
     std::vector<TVector> SimplifyLoop( std::vector<TVector> loop ) {
         loop.push_back( loop[ 0 ] );
@@ -422,7 +355,6 @@ public:
         }
         return result;
     }
-
     TVector ComputePolygonNormal( std::vector<TVector> loop ) {
         if( loop.size() < 3 ) {
             // TODO: Log error

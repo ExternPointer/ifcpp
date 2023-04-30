@@ -44,6 +44,7 @@
 #include "ifcpp/Ifc/IfcTextLiteral.h"
 #include "ifcpp/Ifc/IfcWall.h"
 #include "ifcpp/Ifc/IfcWindow.h"
+#include "ifcpp/Ifc/IfcDoor.h"
 
 
 namespace ifcpp {
@@ -159,9 +160,12 @@ private:
         std::vector<TMesh> meshes;
         std::vector<TPolyline> polylines;
 
-//        if( std::dynamic_pointer_cast<IfcWindow>( object )) {
-//            return {};
-//        }
+        if( std::dynamic_pointer_cast<IfcWindow>( object )) {
+            return {};
+        }
+        if( std::dynamic_pointer_cast<IfcDoor>( object )) {
+            return {};
+        }
 
         for( const auto& item: product->m_Representation->m_Representations ) {
             const auto [ m, p ] = this->ConvertRepresentation( item );
@@ -176,6 +180,7 @@ private:
         this->m_adapter->Transform( &polylines, matrix );
 
         const auto opening = this->ConvertRelatedOpening( object );
+        //return { this->m_adapter->CreateEntity( object, opening, {} ) };
         if( !opening.empty() ) {
             meshes = this->m_adapter->ComputeDifference( meshes, opening );
         }

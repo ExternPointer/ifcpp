@@ -91,6 +91,7 @@ public:
         const auto edgeCurve = dynamic_pointer_cast<IfcEdgeCurve>( edge );
         if( edgeCurve ) {
             auto points = this->m_curveConverter->ConvertCurve( edgeCurve->m_EdgeGeometry );
+            // FIXME
             if( edgeCurve->m_SameSense && !edgeCurve->m_SameSense->m_value ) {
                 std::reverse( std::begin( points ), std::end( points ) );
             }
@@ -143,13 +144,17 @@ public:
                 loops.push_back( loop );
             }
         }
-//        if( loops.empty() ) {
-//            return {};
-//        }
 
-        //loops = this->m_geomUtils->BringToFrontOuterLoop( loops );
-        //outer = loops[0];
-        //std::copy( std::begin( loops ) + 1, std::end( loops ), std::back_inserter( inners ) );
+        if( outer.empty() ) {
+            if( inners.size() == 1 ) {
+                outer = inners[0];
+                inners.clear();
+            } else {
+                return {};
+            }
+        }
+
+        //std::reverse( outer.begin(), outer.end() );
 
         return this->m_geomUtils->IncorporateHoles( outer, loops );
     }

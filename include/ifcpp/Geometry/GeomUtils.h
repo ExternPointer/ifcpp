@@ -496,18 +496,6 @@ public:
     }
 
     TVector ComputePolygonNormal( std::vector<TVector> loop ) {
-//        TVector normal;
-//        for( int i = 1; i < loop.size() - 1; i++ ) {
-//            normal = normal + AVector::Cross( ( loop[ i - 1 ] - loop[ i ] ), ( loop[ i + 1 ] - loop[ i ] ) );
-//        }
-//
-//        if( AVector::Len2( normal ) < 1e-12 ) {
-//            return AVector::New();
-//        }
-//        normal = -AVector::Normalized( normal );
-//        return normal;
-
-        // this->MoveToOriginAndScale( &loop, true );
 
         if( loop.size() < 3 ) {
             // TODO: Log error
@@ -523,15 +511,19 @@ public:
                     if( AVector::Len2( normal ) > AVector::Len2( planeNormal ) ) {
                         planeNormal = normal;
                     }
+                    if( AVector::Len2( planeNormal ) > 1e-3 ) {
+                        goto BREAK;
+                    }
                 }
             }
         }
+        BREAK:
 
         planeNormal = AVector::Normalized( planeNormal );
 
         Plane<TVector> p( loop[ 0 ], planeNormal );
         loop = p.GetProjection( loop );
-        this->MoveToOriginAndScale( &loop );
+        //this->MoveToOriginAndScale( &loop );
         loop.push_back( loop[ 0 ] );
 
         float s = 0.0f;

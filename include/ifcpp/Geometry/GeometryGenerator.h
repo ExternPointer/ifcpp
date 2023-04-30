@@ -99,40 +99,6 @@ public:
     }
 
     std::vector<TEntity> GenerateGeometry() {
-
-//        std::vector<TVector> outer = {
-//            VectorAdapter<TVector>::New( 0, 0 ),
-//            VectorAdapter<TVector>::New( 5, 0 ),
-//            VectorAdapter<TVector>::New( 5, 3 ),
-//            VectorAdapter<TVector>::New( 0, 3 ),
-//        };
-//
-//        std::vector<std::vector<TVector>> inners = {
-//            {
-//                VectorAdapter<TVector>::New( 0.01, 0.01 ),
-//                VectorAdapter<TVector>::New( 4.99, 0.01 ),
-//                VectorAdapter<TVector>::New( 4.99, 2.99 ),
-//                VectorAdapter<TVector>::New( 0.01, 2.99 ),
-//            },
-////            {
-////                VectorAdapter<TVector>::New( 3, 1 ),
-////                VectorAdapter<TVector>::New( 4, 1 ),
-////                VectorAdapter<TVector>::New( 4, 2 ),
-////                VectorAdapter<TVector>::New( 3, 2 ),
-////            },
-//        };
-//
-//        auto inner = this->m_geomUtils->CombineLoops( inners );
-//        std::reverse( inner.begin(), inner.end() );
-//        outer = this->m_geomUtils->CombineLoops( { outer, inner } );
-//
-//        auto loops = this->m_extruder->Extrude( outer, VectorAdapter<TVector>::New( 0, 0, 1 ) );
-//
-//        return { this->m_adapter->CreateEntity( {}, { Helpers::CreateMesh( this->m_adapter, loops ) }, {} ) };
-//
-//
-
-
         std::vector<TEntity> entities;
         for( const auto& idEntityPair: this->m_ifcModel->getMapIfcEntities() ) {
             auto object = std::dynamic_pointer_cast<IfcObjectDefinition>( idEntityPair.second );
@@ -160,13 +126,6 @@ private:
         std::vector<TMesh> meshes;
         std::vector<TPolyline> polylines;
 
-        if( std::dynamic_pointer_cast<IfcWindow>( object )) {
-            return {};
-        }
-        if( std::dynamic_pointer_cast<IfcDoor>( object )) {
-            return {};
-        }
-
         for( const auto& item: product->m_Representation->m_Representations ) {
             const auto [ m, p ] = this->ConvertRepresentation( item );
             Helpers::AppendTo( &meshes, m );
@@ -185,18 +144,18 @@ private:
             meshes = this->m_adapter->ComputeDifference( meshes, opening );
         }
 
-        //        if( std::dynamic_pointer_cast<IfcWall>( object ) ) {
-        //            auto style = std::make_shared<Style>();
-        //            style->m_type = Style::SURFACE_FRONT;
-        //            style->m_color = { 231.0f / 255.0f, 219.0f / 255.0f, 169.0f / 255.0f, 1.0f };
-        //            this->m_adapter->AddStyles( &meshes, { style } );
-        //        }
-        //        if( std::dynamic_pointer_cast<IfcSlab>( object ) ) {
-        //            auto style = std::make_shared<Style>();
-        //            style->m_type = Style::SURFACE_FRONT;
-        //            style->m_color = { 140.0f / 255.0f, 140.0f / 255.0f, 140.0f / 255.0f, 1.0f };
-        //            this->m_adapter->AddStyles( &meshes, { style } );
-        //        }
+        if( std::dynamic_pointer_cast<IfcWall>( object ) ) {
+            auto style = std::make_shared<Style>();
+            style->m_type = Style::SURFACE_FRONT;
+            style->m_color = { 231.0f / 255.0f, 219.0f / 255.0f, 169.0f / 255.0f, 1.0f };
+            this->m_adapter->AddStyles( &meshes, { style } );
+        }
+        if( std::dynamic_pointer_cast<IfcSlab>( object ) ) {
+            auto style = std::make_shared<Style>();
+            style->m_type = Style::SURFACE_FRONT;
+            style->m_color = { 140.0f / 255.0f, 140.0f / 255.0f, 140.0f / 255.0f, 1.0f };
+            this->m_adapter->AddStyles( &meshes, { style } );
+        }
 
         return this->m_adapter->CreateEntity( object, meshes, polylines );
     }
@@ -274,7 +233,7 @@ private:
                 if( openingRel ) {
                     const auto opening = openingRel->m_RelatedOpeningElement;
 
-                    if( !opening->m_Representation ) {
+                    if( !opening || !opening->m_Representation ) {
                         continue;
                     }
                     for( const auto& representation: opening->m_Representation->m_Representations ) {

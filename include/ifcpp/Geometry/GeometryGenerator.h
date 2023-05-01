@@ -16,6 +16,7 @@
 #include "ifcpp/Geometry/SolidConverter.h"
 #include "ifcpp/Geometry/SplineConverter.h"
 #include "ifcpp/Geometry/StyleConverter.h"
+#include "ifcpp/Geometry/VisualObject.h"
 
 #include "ifcpp/Model/BuildingModel.h"
 #include "ifcpp/Model/UnitConverter.h"
@@ -24,6 +25,7 @@
 #include "ifcpp/Ifc/IfcBooleanResult.h"
 #include "ifcpp/Ifc/IfcBuiltElement.h"
 #include "ifcpp/Ifc/IfcConnectedFaceSet.h"
+#include "ifcpp/Ifc/IfcDoor.h"
 #include "ifcpp/Ifc/IfcFace.h"
 #include "ifcpp/Ifc/IfcFaceBasedSurfaceModel.h"
 #include "ifcpp/Ifc/IfcFeatureElementSubtraction.h"
@@ -44,7 +46,6 @@
 #include "ifcpp/Ifc/IfcTextLiteral.h"
 #include "ifcpp/Ifc/IfcWall.h"
 #include "ifcpp/Ifc/IfcWindow.h"
-#include "ifcpp/Ifc/IfcDoor.h"
 
 
 namespace ifcpp {
@@ -59,6 +60,7 @@ class GeometryGenerator {
     using TPolyline = typename TAdapter::TPolyline;
     using TMesh = typename TAdapter::TMesh;
     using TMatrix = Matrix<TVector>;
+    using TVisualObject = VisualObject<TAdapter>;
 
     std::shared_ptr<BuildingModel> m_ifcModel;
     std::shared_ptr<TAdapter> m_adapter;
@@ -123,87 +125,82 @@ private:
             return this->m_adapter->CreateEntity( object, {}, {} );
         }
 
-        std::vector<TMesh> meshes;
-        std::vector<TPolyline> polylines;
+        std::vector<std::shared_ptr<TVisualObject>> visualObjects;
 
         for( const auto& item: product->m_Representation->m_Representations ) {
-            const auto [ m, p ] = this->ConvertRepresentation( item );
-            Helpers::AppendTo( &meshes, m );
-            Helpers::AppendTo( &polylines, p );
+            const auto vo = this->ConvertRepresentation( item );
+            Helpers::AppendTo( &visualObjects, vo );
         }
 
         auto matrix = this->m_primitivesConverter->ConvertPlacement( product->m_ObjectPlacement );
+
         TMatrix::Multiply( &matrix,
                            TMatrix::GetScale( this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor, this->m_parameters->m_lengthFactor ) );
-        this->m_adapter->Transform( &meshes, matrix );
-        this->m_adapter->Transform( &polylines, matrix );
 
         const auto opening = this->ConvertRelatedOpening( object );
-        //return { this->m_adapter->CreateEntity( object, opening, {} ) };
-        if( !opening.empty() ) {
-            meshes = this->m_adapter->ComputeDifference( meshes, opening );
+
+        std::vector<TMesh> resultMeshes;
+        std::vector<TPolyline> resultPolylines;
+
+        auto defaultStyle = this->GetDefaultStyleForObject( object );
+        for( auto& vo: visualObjects ) {
+            this->m_adapter->Transform( &vo->m_meshes, matrix );
+            this->m_adapter->Transform( &vo->m_polylines, matrix );
+            vo->m_meshes = this->m_adapter->ComputeDifference( vo->m_meshes, opening );
+            vo->AddStyles( { defaultStyle } );
+            this->m_adapter->AddStyles( &vo->m_meshes, vo->m_styles );
+            this->m_adapter->AddStyles( &vo->m_polylines, vo->m_styles );
+            Helpers::AppendTo( &resultMeshes, vo->m_meshes );
+            Helpers::AppendTo( &resultPolylines, vo->m_polylines );
         }
 
-        if( std::dynamic_pointer_cast<IfcWall>( object ) ) {
-            auto style = std::make_shared<Style>();
-            style->m_type = Style::SURFACE_FRONT;
-            style->m_color = { 231.0f / 255.0f, 219.0f / 255.0f, 169.0f / 255.0f, 1.0f };
-            this->m_adapter->AddStyles( &meshes, { style } );
-        }
-        if( std::dynamic_pointer_cast<IfcSlab>( object ) ) {
-            auto style = std::make_shared<Style>();
-            style->m_type = Style::SURFACE_FRONT;
-            style->m_color = { 140.0f / 255.0f, 140.0f / 255.0f, 140.0f / 255.0f, 1.0f };
-            this->m_adapter->AddStyles( &meshes, { style } );
-        }
 
-        return this->m_adapter->CreateEntity( object, meshes, polylines );
+        return this->m_adapter->CreateEntity( object, resultMeshes, resultPolylines );
     }
 
-    std::tuple<std::vector<TMesh>, std::vector<TPolyline>> ConvertRepresentation( const std::shared_ptr<IfcRepresentation>& representation ) {
-        std::vector<TMesh> meshes;
-        std::vector<TPolyline> polylines;
+    std::vector<std::shared_ptr<TVisualObject>> ConvertRepresentation( const std::shared_ptr<IfcRepresentation>& representation ) {
+        std::vector<std::shared_ptr<TVisualObject>> visualObjects;
 
         for( const auto& item: representation->m_Items ) {
-            const auto [ m, p ] = this->ConvertRepresentationItem( item );
-            Helpers::AppendTo( &meshes, m );
-            Helpers::AppendTo( &polylines, p );
+            const auto vo = this->ConvertRepresentationItem( item );
+            Helpers::AppendTo( &visualObjects, vo );
         }
 
         const auto styles = this->m_styleConverter->GetStyles( representation );
-        this->m_adapter->AddStyles( &meshes, styles );
-        this->m_adapter->AddStyles( &polylines, styles );
+        for( auto& vo: visualObjects ) {
+            vo->AddStyles( styles );
+        }
 
-        return { meshes, polylines };
+        return visualObjects;
     }
 
-    std::tuple<std::vector<TMesh>, std::vector<TPolyline>> ConvertRepresentationItem( const std::shared_ptr<IfcRepresentationItem>& item ) {
+    std::vector<std::shared_ptr<TVisualObject>> ConvertRepresentationItem( const std::shared_ptr<IfcRepresentationItem>& item ) {
         // ENTITY IfcRepresentationItem  ABSTRACT SUPERTYPE OF(ONEOF(IfcGeometricRepresentationItem,
         // IfcMappedItem, IfcStyledItem, IfcTopologicalRepresentationItem));
 
-        std::vector<TMesh> meshes;
-        std::vector<TPolyline> polylines;
+        std::vector<std::shared_ptr<TVisualObject>> visualObjects;
 
         const auto geometric = dynamic_pointer_cast<IfcGeometricRepresentationItem>( item );
         if( geometric ) {
-            std::tie( meshes, polylines ) = this->ConvertGeometryRepresentation( geometric );
+            visualObjects = this->ConvertGeometryRepresentation( geometric );
         }
 
         const auto mappedItem = dynamic_pointer_cast<IfcMappedItem>( item );
         if( mappedItem ) {
-            std::tie( meshes, polylines ) = this->ConvertMappedItem( mappedItem );
+            visualObjects = this->ConvertMappedItem( mappedItem );
         }
 
         // FIXME: IfcTopologicalRepresentationItem (maybe)
 
-        const auto styles = this->m_styleConverter->GetStyles( item );
-        this->m_adapter->AddStyles( &meshes, styles );
-        this->m_adapter->AddStyles( &polylines, styles );
+        const auto styles = this->m_styleConverter->GetStyles( item->m_LayerAssignment_inverse );
+        for( auto& vo: visualObjects ) {
+            vo->AddStyles( styles );
+        }
 
-        return { meshes, polylines };
+        return visualObjects;
     }
 
-    std::tuple<std::vector<TMesh>, std::vector<TPolyline>> ConvertMappedItem( const std::shared_ptr<IfcMappedItem>& mappedItem ) {
+    std::vector<std::shared_ptr<TVisualObject>> ConvertMappedItem( const std::shared_ptr<IfcMappedItem>& mappedItem ) {
         if( !mappedItem->m_MappingSource || !mappedItem->m_MappingSource->m_MappedRepresentation ) {
             // TODO: Log error
             return {};
@@ -212,23 +209,22 @@ private:
         const auto origin = this->m_primitivesConverter->ConvertPlacement( mappedItem->m_MappingSource->m_MappingOrigin );
         const auto m = TMatrix::GetMultiplied( transformation, origin );
 
-        auto [ meshes, polylines ] = this->ConvertRepresentation( mappedItem->m_MappingSource->m_MappedRepresentation );
-
-        this->m_adapter->Transform( &meshes, m );
-        this->m_adapter->Transform( &polylines, m );
+        auto visualObjects = this->ConvertRepresentation( mappedItem->m_MappingSource->m_MappedRepresentation );
 
         const auto styles = this->m_styleConverter->GetStyles( mappedItem->m_LayerAssignment_inverse );
-        this->m_adapter->AddStyles( &meshes, styles );
-        this->m_adapter->AddStyles( &polylines, styles );
+        for( auto& vo: visualObjects ) {
+            this->m_adapter->Transform( &vo->m_meshes, m );
+            this->m_adapter->Transform( &vo->m_polylines, m );
+            vo->AddStyles( styles );
+        }
 
-        return { meshes, polylines };
+        return visualObjects;
     }
 
     std::vector<TMesh> ConvertRelatedOpening( const std::shared_ptr<IFC4X3::IfcObjectDefinition>& object ) {
         std::vector<TMesh> resultMeshes;
         if( const auto element = std::dynamic_pointer_cast<IfcElement>( object ) ) {
             for( const auto& openingRef: element->m_HasOpenings_inverse ) {
-                std::vector<TMesh> meshes;
                 const auto openingRel = openingRef.lock();
                 if( openingRel ) {
                     const auto opening = openingRel->m_RelatedOpeningElement;
@@ -236,9 +232,12 @@ private:
                     if( !opening || !opening->m_Representation ) {
                         continue;
                     }
+                    std::vector<TMesh> meshes;
                     for( const auto& representation: opening->m_Representation->m_Representations ) {
-                        auto [ m, p ] = this->ConvertRepresentation( representation );
-                        Helpers::AppendTo( &meshes, m );
+                        auto visualObjects = this->ConvertRepresentation( representation );
+                        for( const auto& vo: visualObjects ) {
+                            Helpers::AppendTo( &meshes, vo->m_meshes );
+                        }
                     }
                     auto m = this->m_primitivesConverter->ConvertPlacement( opening->m_ObjectPlacement );
                     TMatrix::Multiply(
@@ -251,7 +250,7 @@ private:
         return resultMeshes;
     }
 
-    std::tuple<std::vector<TMesh>, std::vector<TPolyline>>
+    std::vector<std::shared_ptr<TVisualObject>>
     ConvertGeometryRepresentation( const std::shared_ptr<IFC4X3::IfcGeometricRepresentationItem>& geometricRepresentation ) {
         // ENTITY IfcGeometricRepresentationItem
         // ABSTRACT SUPERTYPE OF(ONEOF(IfcAnnotationFillArea, IfcBooleanResult, IfcBoundingBox, IfcCartesianPointList, IfcCartesianTransformationOperator,
@@ -259,46 +258,47 @@ private:
         // IfcGeometricSet, IfcHalfSpaceSolid, IfcLightSource, IfcPlacement, IfcPlanarExtent, IfcPoint, IfcSectionedSpine, IfcShellBasedSurfaceModel,
         // IfcSolidModel, IfcSurface, IfcTessellatedItem, IfcTextLiteral, IfcVector))
 
+        std::vector<std::shared_ptr<TVisualObject>> result;
+
         const auto surfaceModel = dynamic_pointer_cast<IfcFaceBasedSurfaceModel>( geometricRepresentation );
         if( surfaceModel ) {
-            return this->ConvertSurfaceModel( surfaceModel );
+            result = this->ConvertSurfaceModel( surfaceModel );
         }
 
         const auto booleanResult = dynamic_pointer_cast<IfcBooleanResult>( geometricRepresentation );
         if( booleanResult ) {
-            return { this->m_solidConverter->ConvertBooleanResult( booleanResult ), {} };
+            result = this->m_solidConverter->ConvertBooleanResult( booleanResult );
         }
 
         const auto solidModel = dynamic_pointer_cast<IfcSolidModel>( geometricRepresentation );
         if( solidModel ) {
-            return { this->m_solidConverter->ConvertSolidModel( solidModel ), {} };
+            result = this->m_solidConverter->ConvertSolidModel( solidModel );
         }
 
         const auto curve = dynamic_pointer_cast<IfcCurve>( geometricRepresentation );
         if( curve ) {
-            return { {}, { this->m_adapter->CreatePolyline( this->m_curveConverter->ConvertCurve( curve ) ) } };
+            result = { TVisualObject::Create( {}, { this->m_adapter->CreatePolyline( this->m_curveConverter->ConvertCurve( curve ) ) } ) };
         }
 
         const auto shellModel = dynamic_pointer_cast<IfcShellBasedSurfaceModel>( geometricRepresentation );
         if( shellModel ) {
-            return this->ConvertShellBasedSurfaceModel( shellModel );
+            result = this->ConvertShellBasedSurfaceModel( shellModel );
         }
 
         const auto tessellatedItem = dynamic_pointer_cast<IfcTessellatedItem>( geometricRepresentation );
         if( tessellatedItem ) {
             // TODO: implement
-            return {};
+            result = {};
         }
 
         const auto surface = dynamic_pointer_cast<IfcSurface>( geometricRepresentation );
         if( surface ) {
-            return this->ConvertSurface( surface );
+            result = this->ConvertSurface( surface );
         }
 
         const auto geometricSet = dynamic_pointer_cast<IfcGeometricSet>( geometricRepresentation );
         if( geometricSet ) {
-            std::vector<TMesh> meshes;
-            std::vector<TPolyline> polylines;
+            std::vector<std::shared_ptr<TVisualObject>> visualObjects;
 
             for( const auto& geom_select: geometricSet->m_Elements ) {
                 // TYPE IfcGeometricSetSelect = SELECT (IfcPoint, IfcCurve, IfcSurface);
@@ -313,16 +313,14 @@ private:
 
                 shared_ptr<IfcCurve> select_curve = dynamic_pointer_cast<IfcCurve>( geom_select );
                 if( select_curve ) {
-                    const auto [ m, p ] = this->ConvertGeometryRepresentation( select_curve );
-                    Helpers::AppendTo( &meshes, m );
-                    Helpers::AppendTo( &polylines, p );
+                    const auto vo = this->ConvertGeometryRepresentation( select_curve );
+                    Helpers::AppendTo( &visualObjects, vo );
                 }
 
                 shared_ptr<IfcSurface> select_surface = dynamic_pointer_cast<IfcSurface>( geom_select );
                 if( select_surface ) {
-                    const auto [ m, p ] = this->ConvertGeometryRepresentation( select_surface );
-                    Helpers::AppendTo( &meshes, m );
-                    Helpers::AppendTo( &polylines, p );
+                    const auto vo = this->ConvertGeometryRepresentation( select_surface );
+                    Helpers::AppendTo( &visualObjects, vo );
                 }
             }
 
@@ -330,38 +328,43 @@ private:
             if( geometric_curve_set ) {
                 // no additional attributes
             }
-            return { meshes, polylines };
+            result = visualObjects;
         }
 
         const auto sectioned_spine = dynamic_pointer_cast<IfcSectionedSpine>( geometricRepresentation );
         if( sectioned_spine ) {
             // TODO: Implement
-            return {};
+            result = {};
         }
 
         const auto text_literal = dynamic_pointer_cast<IfcTextLiteral>( geometricRepresentation );
         if( text_literal ) {
             // TODO: Implement
-            return {};
+            result = {};
         }
 
         const auto annotation_fill_area = dynamic_pointer_cast<IfcAnnotationFillArea>( geometricRepresentation );
         if( annotation_fill_area ) {
             // TODO: Implement
-            return {};
+            result = {};
         }
 
         shared_ptr<IfcPoint> ifc_point = dynamic_pointer_cast<IfcPoint>( geometricRepresentation );
         if( ifc_point ) {
             // TODO: Implement
-            return {};
+            result = {};
+        }
+
+        const auto styles = this->m_styleConverter->GetStyles( geometricRepresentation );
+        for( auto& r: result ) {
+            r->AddStyles( styles );
         }
 
         // TODO: Implement all
-        return {};
+        return result;
     }
 
-    std::tuple<std::vector<TMesh>, std::vector<TPolyline>> ConvertSurfaceModel( const std::shared_ptr<IfcFaceBasedSurfaceModel>& surfaceModel ) {
+    std::vector<std::shared_ptr<TVisualObject>> ConvertSurfaceModel( const std::shared_ptr<IfcFaceBasedSurfaceModel>& surfaceModel ) {
         std::vector<std::shared_ptr<IfcFace>> faces;
         for( const auto& face_set: surfaceModel->m_FbsmFaces ) {
             // FIXME: Per face materials???
@@ -369,10 +372,10 @@ private:
         }
         const auto loops = this->m_geometryConverter->ConvertFaces( faces );
         // TODO: Check points order
-        return { { Helpers::CreateMesh( this->m_adapter, loops ) }, {} };
+        return { TVisualObject::Create( { Helpers::CreateMesh( this->m_adapter, loops ) } ) };
     }
 
-    std::tuple<std::vector<TMesh>, std::vector<TPolyline>> ConvertShellBasedSurfaceModel( const std::shared_ptr<IfcShellBasedSurfaceModel>& surfaceModel ) {
+    std::vector<std::shared_ptr<TVisualObject>> ConvertShellBasedSurfaceModel( const std::shared_ptr<IfcShellBasedSurfaceModel>& surfaceModel ) {
         std::vector<std::shared_ptr<IfcFace>> faces;
         for( const auto& shell: surfaceModel->m_SbsmBoundary ) {
             // FIXME: Per face materials???
@@ -388,13 +391,26 @@ private:
             }
         }
         const auto loops = this->m_geometryConverter->ConvertFaces( faces );
-        // TODO: Check points order
-        return { { Helpers::CreateMesh( this->m_adapter, loops ) }, {} };
+        return { TVisualObject::Create( { Helpers::CreateMesh( this->m_adapter, loops ) } ) };
     }
 
-    std::tuple<std::vector<TMesh>, std::vector<TPolyline>> ConvertSurface( const std::shared_ptr<IfcSurface>& surface ) {
+    std::vector<std::shared_ptr<TVisualObject>> ConvertSurface( const std::shared_ptr<IfcSurface>& surface ) {
         auto loops = this->m_geometryConverter->ConvertSurface( surface );
-        return { { Helpers::CreateMesh( this->m_adapter, loops ) }, {} };
+        return { TVisualObject::Create( { Helpers::CreateMesh( this->m_adapter, loops ) } ) };
+    }
+
+    std::shared_ptr<Style> GetDefaultStyleForObject( const std::shared_ptr<IfcObjectDefinition> object ) {
+        auto style = std::make_shared<Style>();
+        style->m_type = Style::SURFACE_BOTH;
+        style->m_color = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+        if( std::dynamic_pointer_cast<IfcWall>( object ) ) {
+            style->m_color = { 231.0f / 255.0f, 219.0f / 255.0f, 169.0f / 255.0f, 1.0f };
+        }
+        if( std::dynamic_pointer_cast<IfcSlab>( object ) ) {
+            style->m_color = { 140.0f / 255.0f, 140.0f / 255.0f, 140.0f / 255.0f, 1.0f };
+        }
+        return style;
     }
 };
 

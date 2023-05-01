@@ -46,6 +46,8 @@ set( HEADERS
         include/ifcpp/Geometry/Extruder.h
         include/ifcpp/Geometry/Helpers.h
         include/ifcpp/Geometry/StyleConverter.h
+        include/ifcpp/Geometry/Style.h
+        include/ifcpp/Geometry/VisualObject.h
         ${IFC_HEADERS} )
 
 

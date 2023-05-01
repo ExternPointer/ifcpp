@@ -10,7 +10,6 @@ namespace ifcpp {
 template<CVector TVector>
 class VectorAdapter {
 public:
-
     static TVector New( float x = 0.0f, float y = 0.0f, float z = 0.0f ) {
         TVector v;
         v.x = x;
@@ -20,7 +19,7 @@ public:
     }
 
     static float Len( const TVector& v ) {
-        return sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
+        return sqrtf( Len2( v ) );
     }
 
     static float Len2( const TVector& v ) {
@@ -28,12 +27,17 @@ public:
     }
 
     static TVector Normalized( const TVector& v ) {
-        float invLength = 1.0f / VectorAdapter::Len( v );
-        return VectorAdapter::New( v.x * invLength, v.y * invLength, v.z * invLength );
+        TVector result = v;
+        VectorAdapter::Normalize( &result );
+        return result;
     }
 
     static void Normalize( TVector* v ) {
-        float invLength = 1.0f / VectorAdapter::Len( *v );
+        float len = VectorAdapter::Len( *v );
+        if( len <= 1e-3 ) {
+            return;
+        }
+        float invLength = 1.0f / len;
         v->x *= invLength;
         v->y *= invLength;
         v->z *= invLength;
@@ -48,9 +52,7 @@ public:
     }
 
     static bool IsNearlyEqual( const TVector& v1, const TVector& v2, float preccission = 1e-6f ) {
-        return fabsf( v1.x - v2.x ) < preccission &&
-            fabsf( v1.y - v2.y ) < preccission &&
-            fabsf( v1.z - v2.z ) < preccission;
+        return fabsf( v1.x - v2.x ) < preccission && fabsf( v1.y - v2.y ) < preccission && fabsf( v1.z - v2.z ) < preccission;
     }
 };
 

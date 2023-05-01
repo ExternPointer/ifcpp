@@ -4,7 +4,7 @@
 #include "ifcpp/Geometry/GeomUtils.h"
 #include "ifcpp/Geometry/Matrix.h"
 #include "ifcpp/Geometry/Parameters.h"
-#include "ifcpp/Geometry/PrimitivesConverter.h"
+#include "ifcpp/Geometry/PrimitiveTypesConverter.h"
 #include "ifcpp/Geometry/SplineConverter.h"
 #include "ifcpp/Geometry/VectorAdapter.h"
 
@@ -44,13 +44,13 @@ class CurveConverter {
     using AVector = VectorAdapter<TVector>;
     using TMatrix = Matrix<TVector>;
 
-    std::shared_ptr<PrimitivesConverter<TVector>> m_primitivesConverter;
+    std::shared_ptr<PrimitiveTypesConverter<TVector>> m_primitivesConverter;
     std::shared_ptr<GeomUtils<TVector>> m_geomUtils;
     std::shared_ptr<SplineConverter<TVector>> m_splineConverter;
     std::shared_ptr<Parameters> m_parameters;
 
 public:
-    CurveConverter( const std::shared_ptr<PrimitivesConverter<TVector>>& primitivesConverter, const std::shared_ptr<GeomUtils<TVector>>& geomUtils,
+    CurveConverter( const std::shared_ptr<PrimitiveTypesConverter<TVector>>& primitivesConverter, const std::shared_ptr<GeomUtils<TVector>>& geomUtils,
                     const std::shared_ptr<SplineConverter<TVector>> splineConverter, const std::shared_ptr<Parameters>& parameters )
         : m_primitivesConverter( primitivesConverter )
         , m_geomUtils( geomUtils )

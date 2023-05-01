@@ -6,7 +6,7 @@
 #include "ifcpp/Geometry/GeomUtils.h"
 #include "ifcpp/Geometry/Matrix.h"
 #include "ifcpp/Geometry/Parameters.h"
-#include "ifcpp/Geometry/PrimitivesConverter.h"
+#include "ifcpp/Geometry/PrimitiveTypesConverter.h"
 #include "ifcpp/Geometry/ProfileConverter.h"
 #include "ifcpp/Geometry/SplineConverter.h"
 #include "ifcpp/Geometry/VectorAdapter.h"
@@ -41,7 +41,7 @@ class GeometryConverter {
     using TEdge = std::vector<TVector>;
     using AVector = VectorAdapter<TVector>;
 
-    std::shared_ptr<PrimitivesConverter<TVector>> m_primitivesConverter;
+    std::shared_ptr<PrimitiveTypesConverter<TVector>> m_primitivesConverter;
     std::shared_ptr<CurveConverter<TVector>> m_curveConverter;
     std::shared_ptr<SplineConverter<TVector>> m_splineConverter;
     std::shared_ptr<GeomUtils<TVector>> m_geomUtils;
@@ -51,7 +51,7 @@ class GeometryConverter {
 
 public:
     explicit GeometryConverter( const std::shared_ptr<CurveConverter<TVector>>& curveConverter,
-                                const std::shared_ptr<PrimitivesConverter<TVector>>& primitivesConverter,
+                                const std::shared_ptr<PrimitiveTypesConverter<TVector>>& primitivesConverter,
                                 const std::shared_ptr<SplineConverter<TVector>>& splineConverter, const std::shared_ptr<GeomUtils<TVector>> geomUtils,
                                 const std::shared_ptr<Extruder<TVector>>& extruder, const std::shared_ptr<ProfileConverter<TVector>>& profileConverter,
                                 const std::shared_ptr<Parameters>& parameters )
@@ -91,6 +91,7 @@ public:
         const auto edgeCurve = dynamic_pointer_cast<IfcEdgeCurve>( edge );
         if( edgeCurve ) {
             auto points = this->m_curveConverter->ConvertCurve( edgeCurve->m_EdgeGeometry );
+            // FIXME
             if( edgeCurve->m_SameSense && !edgeCurve->m_SameSense->m_value ) {
                 std::reverse( std::begin( points ), std::end( points ) );
             }
@@ -137,19 +138,23 @@ public:
             if( bound->m_Orientation && !bound->m_Orientation->m_value ) {
                 std::reverse( loop.begin(), loop.end() );
             }
-            loops.push_back( loop );
-        }
-        loops = this->m_geomUtils->BringToFrontOuterLoop( loops );
-        if( loops.empty() ) {
-            return {};
+            if( std::dynamic_pointer_cast<IfcFaceOuterBound>( bound ) ) {
+                outer = loop;
+            } else {
+                loops.push_back( loop );
+            }
         }
 
-        outer = loops[0];
-        std::copy( std::begin( loops ) + 1, std::end( loops ), std::back_inserter( inners ) );
+        if( outer.empty() ) {
+            if( inners.size() == 1 ) {
+                outer = inners[0];
+                inners.clear();
+            } else {
+                return {};
+            }
+        }
 
-        auto inner = this->m_geomUtils->CombineLoops( inners );
-        std::reverse( std::begin( inner ), std::end( inner ) );
-        return this->m_geomUtils->CombineLoops( { outer, inner } );
+        return this->m_geomUtils->IncorporateHoles( outer, loops );
     }
 
     std::vector<TLoop> ConvertFaces( const std::vector<std::shared_ptr<IfcFace>>& loops ) {
@@ -179,10 +184,7 @@ public:
                 for( auto& inner: curve_bounded_plane->m_InnerBoundaries ) {
                     inners.push_back( this->m_geomUtils->SimplifyLoop( this->m_curveConverter->ConvertCurve( inner ) ) );
                 }
-
-                auto inner = this->m_geomUtils->CombineLoops( inners );
-                std::reverse( std::begin( inner ), std::end( inner ) );
-                auto result = this->m_geomUtils->CombineLoops( { outer, inner } );
+                auto result = this->m_geomUtils->IncorporateHoles( outer, inners );
                 curve_bounded_plane_matrix.TransformLoop( &result );
                 return { result };
             } else if( const auto curve_bounded_surface = dynamic_pointer_cast<IfcCurveBoundedSurface>( bounded_surface ) ) {

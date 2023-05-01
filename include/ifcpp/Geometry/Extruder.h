@@ -30,7 +30,7 @@ public:
         if( profile.empty() ) {
             return {};
         }
-        // TODO: It is not important to simplify profile here
+        // TODO: It is not important to simplify profile heres
         if( asClosed ) {
             profile = this->m_geomUtils->SimplifyLoop( profile );
             profile.push_back( profile[ 0 ] );
@@ -40,7 +40,7 @@ public:
         std::vector<TLoop> result;
 
         // TODO: Rework
-        if( AVector::Dot( extrusion, this->m_geomUtils->ComputePlaneNormal( profile ) ) < 0 ) {
+        if( AVector::Dot( extrusion, this->m_geomUtils->ComputePolygonNormal( profile ) ) < 0 ) {
             for( auto& point: profile ) {
                 point = point + extrusion;
             }

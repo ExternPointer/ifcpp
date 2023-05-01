@@ -21,6 +21,29 @@ public:
         std::copy( styles.begin(), styles.end(), std::back_inserter( this->m_styles ) );
     }
 
+    std::shared_ptr<VisualObject<TAdapter>> Copy( const std::shared_ptr<TAdapter>& adapter ) const {
+        auto result = VisualObject::Create();
+        result->m_meshes.reserve( this->m_meshes.size() );
+        result->m_polylines.reserve( this->m_polylines.size() );
+        for( const auto& m: this->m_meshes ) {
+            result->m_meshes.push_back( adapter->CreateMesh( m ) );
+        }
+        for( const auto& p: this->m_polylines ) {
+            result->m_polylines.push_back( adapter->CreatePolyline( p ) );
+        }
+        result->m_styles = this->m_styles;
+        return result;
+    }
+    static std::vector<std::shared_ptr<VisualObject<TAdapter>>> Copy( const std::shared_ptr<TAdapter>& adapter,
+                                                                      const std::vector<std::shared_ptr<VisualObject<TAdapter>>>& visualObjects ) {
+        std::vector<std::shared_ptr<VisualObject<TAdapter>>> result;
+        result.reserve( visualObjects.size() );
+        for( const auto& vo: visualObjects ) {
+            result.push_back( vo->Copy( adapter ) );
+        }
+        return result;
+    }
+
     static std::shared_ptr<VisualObject<TAdapter>> Create( const std::vector<TMesh>& meshes = {}, const std::vector<TPolyline>& polylines = {},
                                                            const std::vector<std::shared_ptr<Style>>& styles = {} ) {
         return std::make_shared<VisualObject<TAdapter>>( VisualObject<TAdapter> { meshes, polylines, styles } );

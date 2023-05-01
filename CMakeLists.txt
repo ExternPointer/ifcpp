@@ -3,6 +3,7 @@ project( ifcpp )
 
 set( CMAKE_CXX_STANDARD 23 )
 
+
 add_definitions( -DIFCQUERY_STATIC_LIB )
 
 file( GLOB_RECURSE IFC_HEADERS include/ifcpp/Ifc *.h )
@@ -51,9 +52,23 @@ set( HEADERS
         ${IFC_HEADERS} )
 
 
-
-add_library( ${PROJECT_NAME} STATIC ${SOURCES} ${HEADERS} )
-target_include_directories( ${PROJECT_NAME} PUBLIC include )
+add_library( ifcpp_lib STATIC ${SOURCES} ${HEADERS} )
+target_include_directories( ifcpp_lib PUBLIC include )
 if( MSVC )
-    target_compile_options( ${PROJECT_NAME} PRIVATE "/bigobj" )
+    set_source_files_properties(src/Ifc/Factories/EntityFactory.cpp PROPERTIES COMPILE_FLAGS /bigobj)
+    set_source_files_properties(src/Ifc/Factories/TypeFactory.cpp PROPERTIES COMPILE_FLAGS /bigobj)
 endif()
+
+
+
+
+find_package( OpenMP )
+add_library( ${PROJECT_NAME} INTERFACE )
+target_link_libraries( ${PROJECT_NAME} INTERFACE ifcpp_lib )
+
+
+if(OpenMP_CXX_FOUND)
+    ADD_DEFINITIONS(-DENABLE_OPENMP)
+    target_link_libraries( ${PROJECT_NAME} INTERFACE OpenMP::OpenMP_CXX)
+endif()
+

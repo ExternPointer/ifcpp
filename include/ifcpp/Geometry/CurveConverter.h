@@ -1,5 +1,9 @@
 #pragma once
 
+#include <map>
+
+#include "ifcpp/Model/OpenMPIncludes.h"
+
 #include "ifcpp/Geometry/CAdapter.h"
 #include "ifcpp/Geometry/GeomUtils.h"
 #include "ifcpp/Geometry/Matrix.h"
@@ -49,6 +53,9 @@ class CurveConverter {
     std::shared_ptr<SplineConverter<TVector>> m_splineConverter;
     std::shared_ptr<Parameters> m_parameters;
 
+    std::map<std::shared_ptr<IfcCurve>, TCurve> m_curveToPointsMap;
+    Mutex m_curveToPointsMapMutex;
+
 public:
     CurveConverter( const std::shared_ptr<PrimitiveTypesConverter<TVector>>& primitivesConverter, const std::shared_ptr<GeomUtils<TVector>>& geomUtils,
                     const std::shared_ptr<SplineConverter<TVector>> splineConverter, const std::shared_ptr<Parameters>& parameters )
@@ -58,8 +65,26 @@ public:
         , m_parameters( parameters ) {
     }
 
+    void ResetCaches() {
+#ifdef ENABLE_OPENMP
+        ScopedLock lock( this->m_curveToPointsMapMutex );
+#endif
+        this->m_curveToPointsMap = {};
+    }
+
     TCurve ConvertCurve( const std::shared_ptr<IfcCurve>& curve ) {
         // ENTITY IfcCurve ABSTRACT SUPERTYPE OF (ONEOF(IfcBoundedCurve, IfcConic, IfcLine, IfcOffsetCurve2D, IfcOffsetCurve3D, IfcPCurve))
+
+        {
+#ifdef ENABLE_OPENMP
+            ScopedLock lock( this->m_curveToPointsMapMutex );
+#endif
+            if( this->m_curveToPointsMap.contains( curve ) ) {
+                return this->m_curveToPointsMap[ curve ];
+            }
+        }
+
+        TCurve result;
 
         const auto boundedCurve = dynamic_pointer_cast<IfcBoundedCurve>( curve );
         if( boundedCurve ) {
@@ -67,7 +92,6 @@ public:
 
             const auto compositeCurve = dynamic_pointer_cast<IfcCompositeCurve>( boundedCurve );
             if( compositeCurve ) {
-                TCurve result;
                 for( const auto& segment: compositeCurve->m_Segments ) {
                     TCurve segmentPoints;
                     const auto compositeCurveSegment = dynamic_pointer_cast<IfcCompositeCurveSegment>( segment );
@@ -83,12 +107,12 @@ public:
                         // TODO: Log error
                     }
                 }
-                return this->m_geomUtils->SimplifyCurve( result );
+                result = this->m_geomUtils->SimplifyCurve( result );
             }
 
             const auto polyLine = dynamic_pointer_cast<IfcPolyline>( curve );
             if( polyLine ) {
-                return this->m_geomUtils->SimplifyCurve( this->m_primitivesConverter->ConvertPoints( polyLine->m_Points ) );
+                result = this->m_geomUtils->SimplifyCurve( this->m_primitivesConverter->ConvertPoints( polyLine->m_Points ) );
             }
 
             const auto trimmedCurve = dynamic_pointer_cast<IfcTrimmedCurve>( boundedCurve );
@@ -111,19 +135,17 @@ public:
                             radius1 = radius2 = (float)circle->m_Radius->m_value;
                         }
 
-                        TCurve result;
                         int n = this->m_parameters->m_numVerticesPerCircle; // TODO: should be calculated from radius
                         n = std::max( n, this->m_parameters->m_minNumVerticesPerArc );
                         bool senseAgreement = !trimmedCurve->m_SenseAgreement || trimmedCurve->m_SenseAgreement->m_value;
-                        auto [ startAngle, openingAngle ] =
-                            this->GetTrimmingsForCircle( trimmedCurve->m_Trim1, trimmedCurve->m_Trim2, placement.GetTransformed( AVector::New() ), senseAgreement );
+                        auto [ startAngle, openingAngle ] = this->GetTrimmingsForCircle( trimmedCurve->m_Trim1, trimmedCurve->m_Trim2,
+                                                                                         placement.GetTransformed( AVector::New() ), senseAgreement );
                         if( radius1 > this->m_parameters->m_epsilon && radius2 > this->m_parameters->m_epsilon ) {
                             result = this->m_geomUtils->BuildEllipse( radius1, radius2, startAngle, openingAngle, n );
                         } else {
                             result.push_back( AVector::New() );
                         }
                         placement.TransformLoop( &result );
-                        return result;
                     }
 
                     const auto line = dynamic_pointer_cast<IfcLine>( trimmedCurve->m_BasisCurve );
@@ -132,7 +154,7 @@ public:
                         const auto direction = AVector::Normalized( this->m_primitivesConverter->ConvertVector( line->m_Dir ) );
                         bool senseAgreement = !trimmedCurve->m_SenseAgreement || trimmedCurve->m_SenseAgreement->m_value;
                         const auto [ l, r ] = this->GetTrimmingsForLine( trimmedCurve->m_Trim1, trimmedCurve->m_Trim2, origin, direction, senseAgreement );
-                        return {
+                        result = {
                             origin + direction * l,
                             origin + direction * r,
                         };
@@ -142,13 +164,12 @@ public:
 
             const auto bsplineCurve = dynamic_pointer_cast<IfcBSplineCurve>( boundedCurve );
             if( bsplineCurve ) {
-                return this->m_splineConverter->ConvertBSplineCurve( bsplineCurve );
+                result = this->m_splineConverter->ConvertBSplineCurve( bsplineCurve );
             }
 
             const auto indexedPolyCurve = dynamic_pointer_cast<IfcIndexedPolyCurve>( boundedCurve );
             if( indexedPolyCurve ) {
                 std::vector<TVector> points;
-                TCurve result;
                 const auto pointList2d = dynamic_pointer_cast<IfcCartesianPointList2D>( indexedPolyCurve->m_Points );
                 if( pointList2d ) {
                     points = this->m_primitivesConverter->ConvertPoints( pointList2d->m_CoordList );
@@ -178,7 +199,6 @@ public:
                         }
                     }
                 }
-                return result;
             }
         }
 
@@ -199,7 +219,6 @@ public:
                 radius1 = radius2 = (float)circle->m_Radius->m_value;
             }
 
-            TCurve result;
             int n = this->m_parameters->m_numVerticesPerCircle; // TODO: should be calculated from radius
             n = std::max( n, this->m_parameters->m_minNumVerticesPerArc );
             if( radius1 > this->m_parameters->m_epsilon && radius2 > this->m_parameters->m_epsilon ) {
@@ -208,14 +227,13 @@ public:
                 result.push_back( AVector::New() );
             }
             placement.TransformLoop( &result );
-            return result;
         }
 
         const auto line = dynamic_pointer_cast<IfcLine>( curve );
         if( line && line->m_Pnt && line->m_Dir ) {
             const auto origin = this->m_primitivesConverter->ConvertPoint( line->m_Pnt );
             const auto direction = AVector::Normalized( this->m_primitivesConverter->ConvertVector( line->m_Dir ) );
-            return {
+            result = {
                 origin - direction * this->m_parameters->m_modelMaxSize * 0.5f,
                 origin + direction * this->m_parameters->m_modelMaxSize * 0.5f,
             };
@@ -224,23 +242,28 @@ public:
         const auto offset_curve_2d = dynamic_pointer_cast<IfcOffsetCurve2D>( curve );
         if( offset_curve_2d ) {
             // TODO: implement
-            return {};
+            result = {};
         }
 
         const auto offset_curve_3d = dynamic_pointer_cast<IfcOffsetCurve3D>( curve );
         if( offset_curve_3d ) {
             // TODO: implement
-            return {};
+            result = {};
         }
 
         const auto pcurve = dynamic_pointer_cast<IfcPcurve>( curve );
         if( pcurve ) {
             // TODO: implement
-            return {};
+            result = {};
         }
 
-        // TODO: Log error
-        return {};
+        {
+#ifdef ENABLE_OPENMP
+            ScopedLock lock( this->m_curveToPointsMapMutex );
+#endif
+            this->m_curveToPointsMap[ curve ] = result;
+        }
+        return result;
     }
 
     TCurve TrimCurve( const TCurve& curve, const TVector& t1, const TVector& t2 ) {
@@ -291,7 +314,7 @@ private:
             return { l, M_PI * 2 - l + r };
         }
         if( !senseAgreement && l < r ) {
-            return { l, -l - (M_PI * 2 - r)};
+            return { l, -l - ( M_PI * 2 - r ) };
         }
         if( !senseAgreement && l > r ) {
             return { l, l - r };

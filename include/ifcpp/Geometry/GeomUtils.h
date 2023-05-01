@@ -338,7 +338,7 @@ public:
             const auto center_p0_normalized = AVector::Normalized( center_p0 );
             const auto center_p2_normalized = AVector::Normalized( center_p2 );
 
-            const float openingAngle = std::acos( AVector::Dot( center_p0_normalized, center_p2_normalized ) );
+            const float openingAngle = acosf( AVector::Dot( center_p0_normalized, center_p2_normalized ) );
             int n = (int)( this->m_parameters->m_numVerticesPerCircle * openingAngle / ( M_PI * 2.0f ) );
             n = std::max( n, this->m_parameters->m_minNumVerticesPerArc );
 

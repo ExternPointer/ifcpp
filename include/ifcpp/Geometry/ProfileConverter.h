@@ -1,6 +1,9 @@
 #pragma once
 
+#include <map>
 #include <vector>
+
+#include "ifcpp/Model/OpenMPIncludes.h"
 
 #include "ifcpp/Geometry/CAdapter.h"
 #include "ifcpp/Geometry/CurveConverter.h"
@@ -49,6 +52,8 @@ class ProfileConverter {
     std::shared_ptr<GeomUtils<TVector>> m_geomUtils;
     std::shared_ptr<Parameters> m_parameters;
 
+    std::map<std::shared_ptr<IfcProfileDef>, std::vector<TVector>> m_profileToPointsMap;
+    Mutex m_profileToPointsMapMutex;
 
 public:
     ProfileConverter( const std::shared_ptr<CurveConverter<TVector>>& curveConverter, const std::shared_ptr<GeomUtils<TVector>> geomUtils,
@@ -59,37 +64,62 @@ public:
         , m_parameters( parameters ) {
     }
 
+    void ResetCaches() {
+#ifdef ENABLE_OPENMP
+        ScopedLock lock( this->m_profileToPointsMapMutex );
+#endif
+        this->m_profileToPointsMap = {};
+    }
+
     std::vector<TVector> ConvertProfile( const std::shared_ptr<IfcProfileDef>& profile ) {
         // ENTITY IfcProfileDef SUPERTYPE OF(ONEOF(IfcArbitraryClosedProfileDef, IfcArbitraryOpenProfileDef, IfcCompositeProfileDef, IfcDerivedProfileDef,
         // IfcParameterizedProfileDef));
 
+        {
+#ifdef ENABLE_OPENMP
+            ScopedLock lock( this->m_profileToPointsMapMutex );
+#endif
+            if( this->m_profileToPointsMap.contains( profile ) ) {
+                return this->m_profileToPointsMap[ profile ];
+            }
+        }
+
+        std::vector<TVector> result;
+
         const auto parameterized = dynamic_pointer_cast<IfcParameterizedProfileDef>( profile );
         if( parameterized ) {
-            return this->ConvertParameterizedProfileDef( parameterized );
+            result = this->ConvertParameterizedProfileDef( parameterized );
         }
 
         const auto arbitraryClosed = dynamic_pointer_cast<IfcArbitraryClosedProfileDef>( profile );
         if( arbitraryClosed ) {
-            return this->ConvertArbitraryClosedProfileDef( arbitraryClosed );
+            result = this->ConvertArbitraryClosedProfileDef( arbitraryClosed );
         }
 
         const auto arbitraryOpen = dynamic_pointer_cast<IfcArbitraryOpenProfileDef>( profile );
         if( arbitraryOpen ) {
-            return this->ConvertArbitraryOpenProfileDef( arbitraryOpen );
+            result = this->ConvertArbitraryOpenProfileDef( arbitraryOpen );
         }
 
         const auto composite = dynamic_pointer_cast<IfcCompositeProfileDef>( profile );
         if( composite ) {
-            return this->ConvertCompositeProfileDef( composite );
+            result = this->ConvertCompositeProfileDef( composite );
         }
 
         const auto derived = dynamic_pointer_cast<IfcDerivedProfileDef>( profile );
         if( derived ) {
-            return this->ConvertDerivedProfileDef( derived );
+            result = this->ConvertDerivedProfileDef( derived );
         }
 
-        // TODO: Log error
-        return {};
+
+        {
+#ifdef ENABLE_OPENMP
+            ScopedLock lock( this->m_profileToPointsMapMutex );
+#endif
+            this->m_profileToPointsMap[ profile ] = result;
+        }
+
+        return result;
     }
 
 private:
@@ -450,7 +480,7 @@ private:
             result.push_back( AVector::New( -width * 0.5f, -height * 0.5f ) );
             result.push_back( AVector::New( width * 0.5f, -height * 0.5f ) );
 
-            float z = std::tanf( fs ) * ( width * 0.5f - edge_radius );
+            float z = tanf( fs ) * ( width * 0.5f - edge_radius );
             if( edge_radius > this->m_parameters->m_epsilon ) {
                 this->AddArc( &result, edge_radius, 0, M_PI_2 - fs, width * 0.5 - edge_radius, -height * 0.5 + tf - z - edge_radius );
             } else {

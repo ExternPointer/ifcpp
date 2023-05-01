@@ -1,5 +1,9 @@
 #pragma once
 
+#include <map>
+
+#include "ifcpp/Model/OpenMPIncludes.h"
+
 #include "ifcpp/Ifc/IfcAdvancedBrep.h"
 #include "ifcpp/Ifc/IfcAdvancedBrepWithVoids.h"
 #include "ifcpp/Ifc/IfcBlock.h"
@@ -66,6 +70,9 @@ class SolidConverter {
     std::shared_ptr<StyleConverter> m_styleConverter;
     std::shared_ptr<Parameters> m_parameters;
 
+    std::map<std::shared_ptr<IfcBooleanResult>, std::vector<std::shared_ptr<TVisualObject>>> m_booleanResultToVisualObjectMap;
+    Mutex m_booleanResultToVisualObjectMapMutex;
+
 public:
     SolidConverter( const std::shared_ptr<PrimitiveTypesConverter<TVector>>& primitivesConverter,
                     const std::shared_ptr<CurveConverter<TVector>>& curveConverter, const std::shared_ptr<ProfileConverter<TVector>>& profileConverter,
@@ -81,6 +88,13 @@ public:
         , m_geomUtils( geomUtils )
         , m_styleConverter( styleConverter )
         , m_parameters( parameters ) {
+    }
+
+    void ResetCaches() {
+#ifdef ENABLE_OPENMP
+        ScopedLock( this->m_booleanResultToVisualObjectMapMutex );
+#endif
+        this->m_booleanResultToVisualObjectMap = {};
     }
 
     std::vector<std::shared_ptr<TVisualObject>> ConvertSolidModel( const shared_ptr<IfcSolidModel>& solidModel ) {
@@ -117,6 +131,15 @@ public:
     }
 
     std::vector<std::shared_ptr<TVisualObject>> ConvertBooleanResult( const shared_ptr<IfcBooleanResult>& booleanResult ) {
+        {
+#ifdef ENABLE_OPENMP
+            ScopedLock lock( this->m_booleanResultToVisualObjectMapMutex );
+#endif
+            if( this->m_booleanResultToVisualObjectMap.contains( booleanResult ) ) {
+                return TVisualObject::Copy( this->m_adapter, this->m_booleanResultToVisualObjectMap[ booleanResult ] );
+            }
+        }
+
         shared_ptr<IfcBooleanOperator>& ifc_boolean_operator = booleanResult->m_Operator;
         shared_ptr<IfcBooleanOperand> ifc_first_operand = booleanResult->m_FirstOperand;
         shared_ptr<IfcBooleanOperand> ifc_second_operand = booleanResult->m_SecondOperand;
@@ -164,7 +187,8 @@ public:
             break;
         default:
             // TODO: Log error
-            return {};
+            operand1 = {};
+            break;
         }
 
         const auto styles = this->m_styleConverter->GetStyles( booleanResult );
@@ -172,6 +196,12 @@ public:
             o->AddStyles( styles );
         }
 
+        {
+#ifdef ENABLE_OPENMP
+            ScopedLock lock( this->m_booleanResultToVisualObjectMapMutex );
+#endif
+            this->m_booleanResultToVisualObjectMap[ booleanResult ] = operand1;
+        }
         return operand1;
     }
 

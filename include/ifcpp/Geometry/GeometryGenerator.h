@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -19,6 +20,7 @@
 #include "ifcpp/Geometry/VisualObject.h"
 
 #include "ifcpp/Model/BuildingModel.h"
+#include "ifcpp/Model/OpenMPIncludes.h"
 #include "ifcpp/Model/UnitConverter.h"
 
 #include "ifcpp/Ifc/IfcAnnotationFillArea.h"
@@ -76,6 +78,11 @@ class GeometryGenerator {
     std::shared_ptr<StyleConverter> m_styleConverter;
     std::shared_ptr<Parameters> m_parameters;
 
+    std::map<std::shared_ptr<IfcRepresentation>, std::vector<std::shared_ptr<TVisualObject>>> m_representationToVisualObjectMap;
+    Mutex m_representationToVisualObjectMapMutex;
+    std::map<std::shared_ptr<IfcRepresentationItem>, std::vector<std::shared_ptr<TVisualObject>>> m_representationItemToVisualObjectMap;
+    Mutex m_representationItemToVisualObjectMapMutex;
+
 public:
     GeometryGenerator( const std::shared_ptr<BuildingModel>& ifcModel, const std::shared_ptr<TAdapter> adapter,
                        const std::shared_ptr<CurveConverter<TVector>>& curveConverter, const std::shared_ptr<Extruder<TVector>>& extruder,
@@ -101,9 +108,20 @@ public:
     }
 
     std::vector<TEntity> GenerateGeometry() {
+        this->ResetCaches();
         std::vector<TEntity> entities;
+        Mutex entitiesMutex;
+
+        std::vector<std::shared_ptr<BuildingEntity>> ifcEntities;
         for( const auto& idEntityPair: this->m_ifcModel->getMapIfcEntities() ) {
-            auto object = std::dynamic_pointer_cast<IfcObjectDefinition>( idEntityPair.second );
+            ifcEntities.push_back( idEntityPair.second );
+        }
+
+#ifdef ENABLE_OPENMP
+#pragma omp parallel for schedule( dynamic, 10 ) shared( ifcEntities, entities, entitiesMutex ) default( none )
+#endif
+        for( int i = 0; i < ifcEntities.size(); i++ ) {
+            auto object = std::dynamic_pointer_cast<IfcObjectDefinition>( ifcEntities[ i ] );
             if( !object ) {
                 continue;
             }
@@ -113,9 +131,28 @@ public:
             if( std::dynamic_pointer_cast<IfcFeatureElementSubtraction>( object ) ) {
                 continue;
             }
-            entities.push_back( GenerateGeometryFromObject( object ) );
+            {
+#ifdef ENABLE_OPENMP
+                ScopedLock lock( entitiesMutex );
+#endif
+                entities.push_back( GenerateGeometryFromObject( object ) );
+            }
         }
         return entities;
+    }
+
+    void ResetCaches() {
+        {
+#ifdef ENABLE_OPENMP
+            ScopedLock lock1( this->m_representationToVisualObjectMapMutex );
+            ScopedLock lock2( this->m_representationItemToVisualObjectMapMutex );
+#endif
+            this->m_representationToVisualObjectMap = {};
+            this->m_representationItemToVisualObjectMap = {};
+        }
+        this->m_solidConverter->ResetCaches();
+        this->m_profileConverter->ResetCaches();
+        this->m_curveConverter->ResetCaches();
     }
 
 private:
@@ -161,6 +198,15 @@ private:
     std::vector<std::shared_ptr<TVisualObject>> ConvertRepresentation( const std::shared_ptr<IfcRepresentation>& representation ) {
         std::vector<std::shared_ptr<TVisualObject>> visualObjects;
 
+        {
+#ifdef ENABLE_OPENMP
+            ScopedLock lock( this->m_representationToVisualObjectMapMutex );
+#endif
+            if( this->m_representationToVisualObjectMap.contains( representation ) ) {
+                return TVisualObject::Copy( this->m_adapter, this->m_representationToVisualObjectMap[ representation ] );
+            }
+        }
+
         for( const auto& item: representation->m_Items ) {
             const auto vo = this->ConvertRepresentationItem( item );
             Helpers::AppendTo( &visualObjects, vo );
@@ -171,12 +217,27 @@ private:
             vo->AddStyles( styles );
         }
 
+        {
+#ifdef ENABLE_OPENMP
+            ScopedLock lock( this->m_representationToVisualObjectMapMutex );
+#endif
+            this->m_representationToVisualObjectMap[ representation ] = TVisualObject::Copy( this->m_adapter, visualObjects );
+        }
         return visualObjects;
     }
 
     std::vector<std::shared_ptr<TVisualObject>> ConvertRepresentationItem( const std::shared_ptr<IfcRepresentationItem>& item ) {
         // ENTITY IfcRepresentationItem  ABSTRACT SUPERTYPE OF(ONEOF(IfcGeometricRepresentationItem,
         // IfcMappedItem, IfcStyledItem, IfcTopologicalRepresentationItem));
+
+        {
+#ifdef ENABLE_OPENMP
+            ScopedLock lock( this->m_representationItemToVisualObjectMapMutex );
+#endif
+            if( this->m_representationItemToVisualObjectMap.contains( item ) ) {
+                return TVisualObject::Copy( this->m_adapter, this->m_representationItemToVisualObjectMap[ item ] );
+            }
+        }
 
         std::vector<std::shared_ptr<TVisualObject>> visualObjects;
 
@@ -197,6 +258,12 @@ private:
             vo->AddStyles( styles );
         }
 
+        {
+#ifdef ENABLE_OPENMP
+            ScopedLock lock( this->m_representationItemToVisualObjectMapMutex );
+#endif
+            this->m_representationItemToVisualObjectMap[ item ] = TVisualObject::Copy( this->m_adapter, visualObjects );
+        }
         return visualObjects;
     }
 
@@ -399,7 +466,7 @@ private:
         return { TVisualObject::Create( { Helpers::CreateMesh( this->m_adapter, loops ) } ) };
     }
 
-    std::shared_ptr<Style> GetDefaultStyleForObject( const std::shared_ptr<IfcObjectDefinition> object ) {
+    std::shared_ptr<Style> GetDefaultStyleForObject( const std::shared_ptr<IfcObjectDefinition>& object ) {
         auto style = std::make_shared<Style>();
         style->m_type = Style::SURFACE_BOTH;
         style->m_color = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -413,5 +480,4 @@ private:
         return style;
     }
 };
-
 }

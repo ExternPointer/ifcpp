@@ -19,9 +19,11 @@ concept CAdapter = CVector<typename TAdapter::TVector> &&
               std::vector<typename TAdapter::TMesh> meshes, std::vector<typename TAdapter::TPolyline> polylines, Matrix<typename TAdapter::TVector> matrix,
               std::vector<typename TAdapter::TVector> loop, std::vector<typename TAdapter::TMesh> operand1, std::vector<typename TAdapter::TMesh> operand2,
               std::vector<std::shared_ptr<Style>> styles ) {
-        { adapter.CreatePolyline( vertices ) } -> std::same_as<typename TAdapter::TPolyline>;
         { adapter.CreateTriangle( vertices, indices ) } -> std::same_as<typename TAdapter::TTriangle>;
+        { adapter.CreatePolyline( vertices ) } -> std::same_as<typename TAdapter::TPolyline>;
         { adapter.CreateMesh( triangles ) } -> std::same_as<typename TAdapter::TMesh>;
+        { adapter.CreatePolyline( polylines[0] ) } -> std::same_as<typename TAdapter::TPolyline>;
+        { adapter.CreateMesh( meshes[0] ) } -> std::same_as<typename TAdapter::TMesh>;
         { adapter.CreateEntity( ifcObjectDifinition, meshes, polylines ) } -> std::same_as<typename TAdapter::TEntity>;
         { adapter.Transform( &meshes, matrix ) } -> std::same_as<void>;
         { adapter.Transform( &polylines, matrix ) } -> std::same_as<void>;

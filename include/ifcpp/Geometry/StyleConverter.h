@@ -40,6 +40,13 @@ class StyleConverter {
 #endif
 
 public:
+    void ResetCaches() {
+#ifdef ENABLE_OPENMP
+        ScopedLock lock( this->m_presentationStyleToStylesMapMutex );
+#endif
+        this->m_presentationStyleToStylesMap = {};
+    }
+
     std::vector<std::shared_ptr<Style>> GetStyles( const shared_ptr<IfcRepresentation>& representation ) {
         return this->GetStyles( representation->m_LayerAssignments_inverse );
     }

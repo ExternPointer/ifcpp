@@ -171,6 +171,7 @@ public:
         this->m_solidConverter->ResetCaches();
         this->m_profileConverter->ResetCaches();
         this->m_curveConverter->ResetCaches();
+        this->m_styleConverter->ResetCaches();
     }
 
 private:

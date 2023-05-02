@@ -159,22 +159,21 @@ public:
         std::copy( std::begin( toAppend ), std::end( toAppend ), std::back_inserter( *loop ) );
     }
     std::vector<TVector> CombineLoops( std::vector<std::vector<TVector>> loops ) {
-        while( !loops.empty() && loops[ 0 ].size() < 3 ) {
-            loops.erase( std::begin( loops ) );
+        for( int i = 0; i < loops.size(); i++ ) {
+            if( loops[i].size() < 3 ) {
+                loops.erase( loops.begin() + i );
+                i--;
+            }
         }
-
         if( loops.empty() ) {
             return {};
         }
 
-        auto planeNormal = this->ComputePolygonNormal( loops[ 0 ] );
-        const Plane<TVector> p( loops[ 0 ][ 0 ], planeNormal );
-
-
-        for( auto& l: loops ) {
-            l = p.GetProjection( l );
-        }
-
+//        auto planeNormal = this->ComputePolygonNormal( loops[ 0 ] );
+//        const Plane<TVector> p( loops[ 0 ][ 0 ], planeNormal );
+//        for( auto& l: loops ) {
+//            l = p.GetProjection( l );
+//        }
 
         for( auto& l: loops ) {
             if( !l.empty() ) {
@@ -234,7 +233,7 @@ public:
             result.insert( std::begin( result ) + inResultIdx, result[ inResultIdx ] );
             result.insert( std::begin( result ) + inResultIdx + 1, std::begin( loopToInsert ), std::end( loopToInsert ) );
         }
-        result = p.GetUnProjected( result );
+        //result = p.GetUnProjected( result );
         return this->SimplifyLoop( result );
     }
     std::vector<TVector> IncorporateHoles( const std::vector<TVector>& outer, std::vector<std::vector<TVector>> inners ) {
@@ -339,7 +338,7 @@ public:
             const auto center_p0_normalized = AVector::Normalized( center_p0 );
             const auto center_p2_normalized = AVector::Normalized( center_p2 );
 
-            const float openingAngle = std::acos( AVector::Dot( center_p0_normalized, center_p2_normalized ) );
+            const float openingAngle = acosf( AVector::Dot( center_p0_normalized, center_p2_normalized ) );
             int n = (int)( this->m_parameters->m_numVerticesPerCircle * openingAngle / ( M_PI * 2.0f ) );
             n = std::max( n, this->m_parameters->m_minNumVerticesPerArc );
 
@@ -370,7 +369,7 @@ public:
                     if( AVector::Len2( normal ) > AVector::Len2( planeNormal ) ) {
                         planeNormal = normal;
                     }
-                    if( AVector::Len2( planeNormal ) > this->m_parameters->m_epsilon ) {
+                    if( AVector::Len2( planeNormal ) > this->m_parameters->m_epsilon * this->m_parameters->m_epsilon ) {
                         goto BREAK;
                     }
                 }
@@ -383,6 +382,11 @@ public:
         Plane<TVector> p( loop[ 0 ], planeNormal );
         loop = p.GetProjection( loop );
         loop.push_back( loop[ 0 ] );
+
+        BoundingBox<TVector> bbox( loop );
+        for( auto& v: loop ) {
+            v = v - bbox.m_min;
+        }
 
         float s = 0.0f;
         for( int i = 1; i < loop.size(); i++ ) {

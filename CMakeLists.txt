@@ -46,12 +46,24 @@ set( HEADERS
         include/ifcpp/Geometry/Extruder.h
         include/ifcpp/Geometry/Helpers.h
         include/ifcpp/Geometry/StyleConverter.h
+        include/ifcpp/Geometry/Style.h
+        include/ifcpp/Geometry/VisualObject.h
         ${IFC_HEADERS} )
 
 
-
-add_library( ${PROJECT_NAME} STATIC ${SOURCES} ${HEADERS} )
-target_include_directories( ${PROJECT_NAME} PUBLIC include )
+add_library( ifcpp_lib STATIC ${SOURCES} ${HEADERS} )
+target_include_directories( ifcpp_lib PUBLIC include )
 if( MSVC )
-    target_compile_options( ${PROJECT_NAME} PRIVATE "/bigobj" )
+    set_source_files_properties( src/Ifc/Factories/EntityFactory.cpp PROPERTIES COMPILE_FLAGS /bigobj )
+    set_source_files_properties( src/Ifc/Factories/TypeFactory.cpp PROPERTIES COMPILE_FLAGS /bigobj )
+endif()
+
+
+add_library( ${PROJECT_NAME} INTERFACE )
+target_link_libraries( ${PROJECT_NAME} INTERFACE ifcpp_lib )
+
+find_package( OpenMP )
+if( OpenMP_CXX_FOUND )
+    add_definitions( -DENABLE_OPENMP )
+    target_link_libraries( ${PROJECT_NAME} INTERFACE OpenMP::OpenMP_CXX )
 endif()

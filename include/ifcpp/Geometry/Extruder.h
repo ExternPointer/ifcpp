@@ -88,9 +88,9 @@ public:
         for( int i = 1; i < sweepPoints.size() - 1; i++ ) {
             fDirs.push_back( AVector::Normalized( AVector::Normalized( sweepPoints[ i ] - sweepPoints[ i - 1 ] ) +
                                                   AVector::Normalized( sweepPoints[ i + 1 ] - sweepPoints[ i ] ) ) );
-            float angle = std::acosf( AVector::Dot( AVector::Normalized( sweepPoints[ i ] - sweepPoints[ i - 1 ] ),
+            float angle = acosf( AVector::Dot( AVector::Normalized( sweepPoints[ i ] - sweepPoints[ i - 1 ] ),
                                                     AVector::Normalized( sweepPoints[ i ] - sweepPoints[ i + 1 ] ) ) );
-            k.push_back( 1.0f / std::sinf( angle / 2.0f ) );
+            k.push_back( 1.0f / sinf( angle / 2.0f ) );
         }
         fDirs.push_back( AVector::Normalized( sweepPoints[ sweepPoints.size() - 1 ] - sweepPoints[ sweepPoints.size() - 2 ] ) );
         k.push_back( 1.0f );

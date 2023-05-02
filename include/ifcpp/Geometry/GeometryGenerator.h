@@ -150,7 +150,7 @@ public:
             }
 
 #ifdef ENABLE_OPENMP
-#pragma omp critical
+#pragma omp critical( entititesLock )
             { Helpers::AppendTo( entitiesPtr, entitiesPerThread ); };
         }
 #endif

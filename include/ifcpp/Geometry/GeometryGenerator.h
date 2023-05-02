@@ -124,7 +124,9 @@ public:
 #ifdef ENABLE_OPENMP
 #pragma omp parallel default( none ) firstprivate( ifcEntitiesCount, ifcEntitiesPtr, entitiesPtr )
         {
-#pragma omp for
+            std::vector<TEntity> entitiesPerThread;
+            entitiesPerThread.reserve( 1000 );
+#pragma omp for schedule( dynamic, 1000 )
 #endif
             for( int i = 0; i < ifcEntitiesCount; i++ ) {
                 const auto object = std::dynamic_pointer_cast<IfcObjectDefinition>( ifcEntitiesPtr->at( i ) );
@@ -139,13 +141,17 @@ public:
                 }
 
                 const auto entity = GenerateGeometryFromObject( object );
+
 #ifdef ENABLE_OPENMP
-#pragma omp critical
+                entitiesPerThread.push_back( entity );
+#else
+            entitiesPtr->push_back( entity );
 #endif
-                { entitiesPtr->push_back( entity ); }
             }
 
 #ifdef ENABLE_OPENMP
+#pragma omp critical
+            { Helpers::AppendTo( entitiesPtr, entitiesPerThread ); };
         }
 #endif
         return entities;

@@ -110,34 +110,44 @@ public:
     std::vector<TEntity> GenerateGeometry() {
         this->ResetCaches();
         std::vector<TEntity> entities;
-        Mutex entitiesMutex;
 
         std::vector<std::shared_ptr<BuildingEntity>> ifcEntities;
+        ifcEntities.reserve( this->m_ifcModel->getMapIfcEntities().size() );
         for( const auto& idEntityPair: this->m_ifcModel->getMapIfcEntities() ) {
             ifcEntities.push_back( idEntityPair.second );
         }
 
+        const auto ifcEntitiesPtr = &ifcEntities;
+        const auto ifcEntitiesCount = ifcEntities.size();
+        const auto entitiesPtr = &entities;
+
 #ifdef ENABLE_OPENMP
-#pragma omp parallel for schedule( dynamic, 10 ) shared( ifcEntities, entities, entitiesMutex ) default( none )
+#pragma omp parallel default( none ) firstprivate( ifcEntitiesCount, ifcEntitiesPtr, entitiesPtr )
+        {
+#pragma omp for
 #endif
-        for( int i = 0; i < ifcEntities.size(); i++ ) {
-            auto object = std::dynamic_pointer_cast<IfcObjectDefinition>( ifcEntities[ i ] );
-            if( !object ) {
-                continue;
-            }
-            if( std::dynamic_pointer_cast<IfcSpace>( object ) ) {
-                continue;
-            }
-            if( std::dynamic_pointer_cast<IfcFeatureElementSubtraction>( object ) ) {
-                continue;
-            }
-            {
+            for( int i = 0; i < ifcEntitiesCount; i++ ) {
+                const auto object = std::dynamic_pointer_cast<IfcObjectDefinition>( ifcEntitiesPtr->at( i ) );
+                if( !object ) {
+                    continue;
+                }
+                if( std::dynamic_pointer_cast<IfcSpace>( object ) ) {
+                    continue;
+                }
+                if( std::dynamic_pointer_cast<IfcFeatureElementSubtraction>( object ) ) {
+                    continue;
+                }
+
+                const auto entity = GenerateGeometryFromObject( object );
 #ifdef ENABLE_OPENMP
-                ScopedLock lock( entitiesMutex );
+#pragma omp critical
 #endif
-                entities.push_back( GenerateGeometryFromObject( object ) );
+                { entitiesPtr->push_back( entity ); }
             }
+
+#ifdef ENABLE_OPENMP
         }
+#endif
         return entities;
     }
 

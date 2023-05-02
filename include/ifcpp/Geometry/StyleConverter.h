@@ -1,5 +1,9 @@
 #pragma once
 
+#include <map>
+
+#include "ifcpp/Model/OpenMPIncludes.h"
+
 #include "ifcpp/Geometry/Style.h"
 
 #include "ifcpp/Ifc/IfcColourRgb.h"
@@ -29,6 +33,10 @@ namespace ifcpp {
 using namespace IFC4X3;
 
 class StyleConverter {
+
+    std::map<std::shared_ptr<IfcPresentationStyle>, std::vector<std::shared_ptr<Style>>> m_presentationStyleToStylesMap;
+    Mutex m_presentationStyleToStylesMapMutex;
+
 public:
     std::vector<std::shared_ptr<Style>> GetStyles( const shared_ptr<IfcRepresentation>& representation ) {
         return this->GetStyles( representation->m_LayerAssignments_inverse );
@@ -92,33 +100,51 @@ public:
     }
 
 
-    std::vector<std::shared_ptr<Style>> ConvertPresentationStyle( const shared_ptr<IfcPresentationStyle>& presentation_style ) {
+    std::vector<std::shared_ptr<Style>> ConvertPresentationStyle( const shared_ptr<IfcPresentationStyle>& presentationStyle ) {
         // ENTITY IfcPresentationStyle	ABSTRACT SUPERTYPE OF(ONEOF(IfcCurveStyle, IfcFillAreaStyle, IfcSurfaceStyle, IfcSymbolStyle, IfcTextStyle));
 
-        const auto curve_style = dynamic_pointer_cast<IfcCurveStyle>( presentation_style );
-        if( curve_style ) {
-            return this->ConvertCurveStyle( curve_style );
+        {
+#ifdef ENABLE_OPENMP
+            ScopedLock lock( this->m_presentationStyleToStylesMapMutex );
+#endif
+            if( this->m_presentationStyleToStylesMap.contains( presentationStyle ) ) {
+                return this->m_presentationStyleToStylesMap[ presentationStyle ];
+            }
         }
 
-        const auto fill_area_style = dynamic_pointer_cast<IfcFillAreaStyle>( presentation_style );
-        if( fill_area_style ) {
+        std::vector<std::shared_ptr<Style>> result;
+
+        const auto curveStyle = dynamic_pointer_cast<IfcCurveStyle>( presentationStyle );
+        if( curveStyle ) {
+            result = this->ConvertCurveStyle( curveStyle );
+        }
+
+        const auto fillAreaStyle = dynamic_pointer_cast<IfcFillAreaStyle>( presentationStyle );
+        if( fillAreaStyle ) {
             // TODO: Implement
-            return {};
+            result = {};
         }
 
-        const auto surface_style = dynamic_pointer_cast<IfcSurfaceStyle>( presentation_style );
-        if( surface_style ) {
-            return this->ConvertSurfaceStyle( surface_style );
+        const auto surfaceStyle = dynamic_pointer_cast<IfcSurfaceStyle>( presentationStyle );
+        if( surfaceStyle ) {
+            result = this->ConvertSurfaceStyle( surfaceStyle );
         }
 
-        const auto text_style = dynamic_pointer_cast<IfcTextStyle>( presentation_style );
-        if( text_style ) {
+        const auto textStyle = dynamic_pointer_cast<IfcTextStyle>( presentationStyle );
+        if( textStyle ) {
             // TODO: Implement
-            return {};
+            result = {};
         }
 
-        // TODO: Log error
-        return {};
+        {
+#ifdef ENABLE_OPENMP
+            ScopedLock lock( this->m_presentationStyleToStylesMapMutex );
+#endif
+            this->m_presentationStyleToStylesMap[ presentationStyle ] = result;
+        }
+
+
+        return result;
     }
 
     std::vector<std::shared_ptr<Style>> ConvertSurfaceStyle( const shared_ptr<IfcSurfaceStyle>& surface_style ) {

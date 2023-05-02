@@ -62,13 +62,11 @@ endif()
 
 
 
-find_package( OpenMP )
 add_library( ${PROJECT_NAME} INTERFACE )
 target_link_libraries( ${PROJECT_NAME} INTERFACE ifcpp_lib )
 
-
-if(OpenMP_CXX_FOUND)
-    ADD_DEFINITIONS(-DENABLE_OPENMP)
-    target_link_libraries( ${PROJECT_NAME} INTERFACE OpenMP::OpenMP_CXX)
+find_package( OpenMP )
+if( OpenMP_CXX_FOUND )
+    add_definitions( -DENABLE_OPENMP )
+    target_link_libraries( ${PROJECT_NAME} INTERFACE OpenMP::OpenMP_CXX )
 endif()
-

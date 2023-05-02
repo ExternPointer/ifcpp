@@ -3,7 +3,6 @@ project( ifcpp )
 
 set( CMAKE_CXX_STANDARD 23 )
 
-
 add_definitions( -DIFCQUERY_STATIC_LIB )
 
 file( GLOB_RECURSE IFC_HEADERS include/ifcpp/Ifc *.h )
@@ -55,11 +54,9 @@ set( HEADERS
 add_library( ifcpp_lib STATIC ${SOURCES} ${HEADERS} )
 target_include_directories( ifcpp_lib PUBLIC include )
 if( MSVC )
-    set_source_files_properties(src/Ifc/Factories/EntityFactory.cpp PROPERTIES COMPILE_FLAGS /bigobj)
-    set_source_files_properties(src/Ifc/Factories/TypeFactory.cpp PROPERTIES COMPILE_FLAGS /bigobj)
+    set_source_files_properties( src/Ifc/Factories/EntityFactory.cpp PROPERTIES COMPILE_FLAGS /bigobj )
+    set_source_files_properties( src/Ifc/Factories/TypeFactory.cpp PROPERTIES COMPILE_FLAGS /bigobj )
 endif()
-
-
 
 
 add_library( ${PROJECT_NAME} INTERFACE )

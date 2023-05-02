@@ -35,7 +35,9 @@ using namespace IFC4X3;
 class StyleConverter {
 
     std::map<std::shared_ptr<IfcPresentationStyle>, std::vector<std::shared_ptr<Style>>> m_presentationStyleToStylesMap;
+#ifdef ENABLE_OPENMP
     Mutex m_presentationStyleToStylesMapMutex;
+#endif
 
 public:
     std::vector<std::shared_ptr<Style>> GetStyles( const shared_ptr<IfcRepresentation>& representation ) {

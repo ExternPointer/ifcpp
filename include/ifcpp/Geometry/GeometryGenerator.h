@@ -79,9 +79,11 @@ class GeometryGenerator {
     std::shared_ptr<Parameters> m_parameters;
 
     std::map<std::shared_ptr<IfcRepresentation>, std::vector<std::shared_ptr<TVisualObject>>> m_representationToVisualObjectMap;
-    Mutex m_representationToVisualObjectMapMutex;
     std::map<std::shared_ptr<IfcRepresentationItem>, std::vector<std::shared_ptr<TVisualObject>>> m_representationItemToVisualObjectMap;
+#ifdef ENABLE_OPENMP
+    Mutex m_representationToVisualObjectMapMutex;
     Mutex m_representationItemToVisualObjectMapMutex;
+#endif
 
 public:
     GeometryGenerator( const std::shared_ptr<BuildingModel>& ifcModel, const std::shared_ptr<TAdapter> adapter,

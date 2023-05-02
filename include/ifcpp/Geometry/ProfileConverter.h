@@ -53,7 +53,9 @@ class ProfileConverter {
     std::shared_ptr<Parameters> m_parameters;
 
     std::map<std::shared_ptr<IfcProfileDef>, std::vector<TVector>> m_profileToPointsMap;
+#ifdef ENABLE_OPENMP
     Mutex m_profileToPointsMapMutex;
+#endif
 
 public:
     ProfileConverter( const std::shared_ptr<CurveConverter<TVector>>& curveConverter, const std::shared_ptr<GeomUtils<TVector>> geomUtils,

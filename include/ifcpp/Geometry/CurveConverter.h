@@ -54,7 +54,9 @@ class CurveConverter {
     std::shared_ptr<Parameters> m_parameters;
 
     std::map<std::shared_ptr<IfcCurve>, TCurve> m_curveToPointsMap;
+#ifdef ENABLE_OPENMP
     Mutex m_curveToPointsMapMutex;
+#endif
 
 public:
     CurveConverter( const std::shared_ptr<PrimitiveTypesConverter<TVector>>& primitivesConverter, const std::shared_ptr<GeomUtils<TVector>>& geomUtils,

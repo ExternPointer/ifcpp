@@ -71,7 +71,9 @@ class SolidConverter {
     std::shared_ptr<Parameters> m_parameters;
 
     std::map<std::shared_ptr<IfcBooleanResult>, std::vector<std::shared_ptr<TVisualObject>>> m_booleanResultToVisualObjectMap;
+#ifdef ENABLE_OPENMP
     Mutex m_booleanResultToVisualObjectMapMutex;
+#endif
 
 public:
     SolidConverter( const std::shared_ptr<PrimitiveTypesConverter<TVector>>& primitivesConverter,

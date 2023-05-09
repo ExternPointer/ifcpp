@@ -227,7 +227,7 @@ std::string encodeStepString( const std::string& str )
 		{
 			int value = static_cast<int>(append_char);
 			char temporary[8];
-			sprintf( temporary, "%04X", value );
+			snprintf( temporary, 8, "%04X", value );
 
 			if( !hasOpenedUnicodeTag )
 			{

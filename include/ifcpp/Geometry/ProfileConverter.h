@@ -343,9 +343,9 @@ private:
             const auto tw = (float)i_shape->m_WebThickness->m_value;
             const auto tf = (float)i_shape->m_FlangeThickness->m_value;
             const auto fillet_radius = (float)i_shape->m_FilletRadius->m_value;
-            const auto flange_edge_radius = 0.0f;
+            auto flange_edge_radius = 0.0f;
             if( i_shape->m_FlangeEdgeRadius ) {
-                (float)i_shape->m_FlangeEdgeRadius->m_value;
+                flange_edge_radius = (float)i_shape->m_FlangeEdgeRadius->m_value;
             }
             TPath result;
 

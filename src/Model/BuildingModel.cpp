@@ -88,6 +88,8 @@ std::string getIfcSchemaVersionString(BuildingModel::SchemaVersionEnum version)
 	case BuildingModel::IFC4: return "IFC4";
 	case BuildingModel::IFC4X1: return "IFC4X1";
 	case BuildingModel::IFC4X3: return "IFC4X3";
+        case BuildingModel::IFC_VERSION_UNDEFINED:
+        case BuildingModel::IFC_VERSION_UNKNOWN: return "IFC_VERSION_UNDEFINED";
 	}
 	return "IFC_VERSION_UNDEFINED";
 };

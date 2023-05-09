@@ -5,6 +5,9 @@ set( CMAKE_CXX_STANDARD 23 )
 
 add_definitions( -DIFCQUERY_STATIC_LIB )
 
+add_definitions( -D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS )
+add_definitions( -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS )
+
 file( GLOB_RECURSE IFC_HEADERS include/ifcpp/Ifc *.h )
 file( GLOB_RECURSE IFC_SOURCES src/Ifc *.cpp )
 

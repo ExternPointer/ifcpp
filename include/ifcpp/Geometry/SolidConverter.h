@@ -94,7 +94,7 @@ public:
 
     void ResetCaches() {
 #ifdef ENABLE_OPENMP
-        ScopedLock( this->m_booleanResultToVisualObjectMapMutex );
+        ScopedLock lock( this->m_booleanResultToVisualObjectMapMutex );
 #endif
         this->m_booleanResultToVisualObjectMap = {};
     }

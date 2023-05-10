@@ -1,3 +1,7 @@
+This forked repository contains modified code from the original project, done by ExternPointer.
+The original license are preserved in this fork and available in the text below.
+
+
 The MIT License (MIT)
 
 Copyright 2010-2015 Fabian Gerold (fbnge4@gmail.com).

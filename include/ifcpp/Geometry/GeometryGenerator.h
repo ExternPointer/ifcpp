@@ -135,9 +135,6 @@ public:
                 if( !object ) {
                     continue;
                 }
-                if( std::dynamic_pointer_cast<IfcSpace>( object ) ) {
-                    continue;
-                }
                 if( std::dynamic_pointer_cast<IfcFeatureElementSubtraction>( object ) ) {
                     continue;
                 }
@@ -177,7 +174,7 @@ public:
 private:
     TEntity GenerateGeometryFromObject( const std::shared_ptr<IFC4X3::IfcObjectDefinition>& object ) {
         const auto product = dynamic_pointer_cast<IfcProduct>( object );
-        if( !product || !product->m_Representation ) {
+        if( std::dynamic_pointer_cast<IfcSpace>( object ) || !product || !product->m_Representation ) {
             return this->m_adapter->CreateEntity( object, {}, {} );
         }
 

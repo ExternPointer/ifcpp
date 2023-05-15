@@ -254,7 +254,7 @@ private:
             // TODO: Log error
             return TVisualObject::CreateEmpty();
         }
-        const auto depth = (float)extrudedArea->m_Depth->m_value;
+        const auto depth = extrudedArea->m_Depth->m_value;
         const auto extrusion = this->m_primitivesConverter->ConvertPoint( extrudedArea->m_ExtrudedDirection->m_DirectionRatios ) * depth;
         auto loops = this->m_extruder->Extrude( this->m_profileConverter->ConvertProfile( extrudedArea->m_SweptArea ), extrusion );
         const auto m = this->m_primitivesConverter->ConvertPlacement( extrudedArea->m_Position );
@@ -281,7 +281,7 @@ private:
             // TODO: Log error
             return TVisualObject::CreateEmpty();
         }
-        float revolveAngle = (float)revolvedArea->m_Angle->m_value * this->m_parameters->m_angleFactor;
+        double revolveAngle = revolvedArea->m_Angle->m_value * this->m_parameters->m_angleFactor;
         TVector axisLocation = AVector::New( 0, 0, 0 );
         TVector axisDirection = AVector::New( 1, 0, 0 );
 
@@ -379,21 +379,21 @@ private:
             return TVisualObject::CreateEmpty();
         }
 
-        auto radius = (float)sweptDiskSolid->m_Radius->m_value;
+        auto radius = sweptDiskSolid->m_Radius->m_value;
 
-        float innerRadius = 0.0f;
+        double innerRadius = 0.0;
         if( sweptDiskSolid->m_InnerRadius ) {
-            innerRadius = (float)sweptDiskSolid->m_InnerRadius->m_value;
+            innerRadius = sweptDiskSolid->m_InnerRadius->m_value;
         }
 
         // TODO: handle start param, end param
 
         const auto profile = this->m_curveConverter->ConvertCurve( sweptDiskSolid->m_Directrix );
 
-        const auto outer = this->m_geomUtils->BuildCircle( radius, 0.0f, (float)( M_PI * 2 ), this->m_parameters->m_numVerticesPerCircle );
+        const auto outer = this->m_geomUtils->BuildCircle( radius, 0.0, ( M_PI * 2 ), this->m_parameters->m_numVerticesPerCircle );
         std::vector<TVector> inner;
         if( innerRadius > this->m_parameters->m_epsilon ) {
-            inner = this->m_geomUtils->BuildCircle( innerRadius, 0.0f, -(float)( M_PI * 2 ), this->m_parameters->m_numVerticesPerCircle );
+            inner = this->m_geomUtils->BuildCircle( innerRadius, 0.0, -( M_PI * 2 ), this->m_parameters->m_numVerticesPerCircle );
         }
         const auto loops = this->m_extruder->Sweep( this->m_geomUtils->CombineLoops( { outer, inner } ), profile );
         auto resultMesh = Helpers::CreateMesh( this->m_adapter, loops );
@@ -452,7 +452,7 @@ private:
             const auto m = this->m_primitivesConverter->ConvertPlacement( polygonal->m_Position );
 
             for( auto& p: boundaryProfile ) {
-                p.z = -this->m_parameters->m_modelMaxSize * 0.5f;
+                p.z = -this->m_parameters->m_modelMaxSize * 0.5;
             }
 
             auto boundaryLoops = this->m_extruder->Extrude( boundaryProfile, AVector::New( 0, 0, 1 ) * this->m_parameters->m_modelMaxSize );
@@ -538,9 +538,9 @@ private:
 
         const auto m = this->m_primitivesConverter->ConvertPlacement( block->m_Position );
 
-        const float xLen = (float)block->m_XLength->m_value * 0.5f;
-        const float yLen = (float)block->m_YLength->m_value * 0.5f;
-        const float zLen = (float)block->m_ZLength->m_value * 0.5f;
+        const double xLen = block->m_XLength->m_value * 0.5;
+        const double yLen = block->m_YLength->m_value * 0.5;
+        const double zLen = block->m_ZLength->m_value * 0.5;
 
         std::vector<TVector> vertices;
         vertices.push_back( AVector::New( xLen, yLen, zLen ) );
@@ -584,9 +584,9 @@ private:
 
         const auto m = this->m_primitivesConverter->ConvertPlacement( rectangularPyramid->m_Position );
 
-        const float xLen = (float)rectangularPyramid->m_XLength->m_value * 0.5f;
-        const float yLen = (float)rectangularPyramid->m_YLength->m_value * 0.5f;
-        const float height = (float)rectangularPyramid->m_Height->m_value * 0.5f;
+        const double xLen = rectangularPyramid->m_XLength->m_value * 0.5;
+        const double yLen = rectangularPyramid->m_YLength->m_value * 0.5;
+        const double height = rectangularPyramid->m_Height->m_value * 0.5;
 
         std::vector<TVector> vertices;
         vertices.push_back( AVector::New( 0, 0, height ) );
@@ -616,17 +616,17 @@ private:
 
         const auto m = this->m_primitivesConverter->ConvertPlacement( rightCircularCone->m_Position );
 
-        const auto height = (float)rightCircularCone->m_Height->m_value;
-        const auto radius = (float)rightCircularCone->m_BottomRadius->m_value;
+        const auto height = rightCircularCone->m_Height->m_value;
+        const auto radius = rightCircularCone->m_BottomRadius->m_value;
 
         std::vector<TVector> vertices;
-        vertices.push_back( AVector::New( 0.0f, 0.0f, height ) ); // top
-        vertices.push_back( AVector::New( 0.0f, 0.0f, 0.0f ) ); // bottom center
+        vertices.push_back( AVector::New( 0.0, 0.0, height ) ); // top
+        vertices.push_back( AVector::New( 0.0, 0.0, 0.0 ) ); // bottom center
 
-        float angle = 0;
-        auto delta = (float)( 2.0f * M_PI / float( this->m_parameters->m_numVerticesPerCircle - 1 ) ); // TODO: Use radius
+        double angle = 0;
+        auto delta = ( 2.0 * M_PI / double( this->m_parameters->m_numVerticesPerCircle - 1 ) ); // TODO: Use radius
         for( int i = 0; i < this->m_parameters->m_numVerticesPerCircle; ++i ) {
-            vertices.push_back( AVector::New( sinf( angle ) * radius, cosf( angle ) * radius, 0.0f ) );
+            vertices.push_back( AVector::New( sin( angle ) * radius, cos( angle ) * radius, 0.0 ) );
             angle += delta;
         }
 
@@ -656,11 +656,11 @@ private:
 
         const auto m = this->m_primitivesConverter->ConvertPlacement( rightCircularCylinder->m_Position );
 
-        auto height = (float)rightCircularCylinder->m_Height->m_value;
-        auto radius = (float)rightCircularCylinder->m_Radius->m_value;
+        auto height = rightCircularCylinder->m_Height->m_value;
+        auto radius = rightCircularCylinder->m_Radius->m_value;
 
         // TODO: Use radius
-        const auto circle = this->m_geomUtils->BuildCircle( radius, 0, (float)( M_PI * 2 ), this->m_parameters->m_numVerticesPerCircle );
+        const auto circle = this->m_geomUtils->BuildCircle( radius, 0, ( M_PI * 2 ), this->m_parameters->m_numVerticesPerCircle );
         auto loops = this->m_extruder->Extrude( this->m_geomUtils->SimplifyLoop( circle ), AVector::New( 0, 0, height ), false );
 
         m.TransformLoops( &loops );
@@ -686,7 +686,7 @@ private:
         //        /   |   \
 
         std::vector<TVector> vertices;
-        vertices.push_back( AVector::New( 0.0f, 0.0f, radius ) ); // top
+        vertices.push_back( AVector::New( 0.0, 0.0, radius ) ); // top
 
         const int nvc = this->m_parameters->m_numVerticesPerCircle; // TODO: Use radius
         const int num_vertical_edges = nvc * 0.5;

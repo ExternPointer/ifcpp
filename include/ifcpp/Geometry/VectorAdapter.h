@@ -10,7 +10,7 @@ namespace ifcpp {
 template<CVector TVector>
 class VectorAdapter {
 public:
-    static TVector New( float x = 0.0f, float y = 0.0f, float z = 0.0f ) {
+    static TVector New( double x = 0.0, double y = 0.0, double z = 0.0 ) {
         TVector v;
         v.x = x;
         v.y = y;
@@ -18,11 +18,11 @@ public:
         return v;
     }
 
-    static float Len( const TVector& v ) {
+    static double Len( const TVector& v ) {
         return sqrtf( Len2( v ) );
     }
 
-    static float Len2( const TVector& v ) {
+    static double Len2( const TVector& v ) {
         return v.x * v.x + v.y * v.y + v.z * v.z;
     }
 
@@ -33,17 +33,17 @@ public:
     }
 
     static void Normalize( TVector* v ) {
-        float len = VectorAdapter::Len( *v );
+        double len = VectorAdapter::Len( *v );
         if( len <= 1e-3 ) {
             return;
         }
-        float invLength = 1.0f / len;
+        double invLength = 1.0 / len;
         v->x *= invLength;
         v->y *= invLength;
         v->z *= invLength;
     }
 
-    static float Dot( const TVector& v1, const TVector& v2 ) {
+    static double Dot( const TVector& v1, const TVector& v2 ) {
         return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
     }
 
@@ -51,8 +51,8 @@ public:
         return VectorAdapter::New( v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x );
     }
 
-    static bool IsNearlyEqual( const TVector& v1, const TVector& v2, float preccission = 1e-6f ) {
-        return fabsf( v1.x - v2.x ) < preccission && fabsf( v1.y - v2.y ) < preccission && fabsf( v1.z - v2.z ) < preccission;
+    static bool IsNearlyEqual( const TVector& v1, const TVector& v2, double preccission = 1e-6 ) {
+        return abs( v1.x - v2.x ) < preccission && abs( v1.y - v2.y ) < preccission && abs( v1.z - v2.z ) < preccission;
     }
 };
 

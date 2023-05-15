@@ -5,13 +5,13 @@ namespace ifcpp {
 
 class Parameters {
 public:
-    float m_epsilon;
+    double m_epsilon;
     int m_numVerticesPerCircle;
     int m_minNumVerticesPerArc;
-    float m_modelMaxSize;
+    double m_modelMaxSize;
     int m_numVerticesPerControlPoint;
-    float m_lengthFactor;
-    float m_angleFactor;
+    double m_lengthFactor;
+    double m_angleFactor;
 };
 
 }

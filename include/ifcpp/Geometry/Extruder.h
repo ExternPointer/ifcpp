@@ -81,19 +81,19 @@ public:
         }
 
         std::vector<TVector> rDirs, fDirs, uDirs;
-        std::vector<float> k;
+        std::vector<double> k;
 
         fDirs.push_back( AVector::Normalized( sweepPoints[ 1 ] - sweepPoints[ 0 ] ) );
-        k.push_back( 1.0f );
+        k.push_back( 1.0 );
         for( int i = 1; i < sweepPoints.size() - 1; i++ ) {
             fDirs.push_back( AVector::Normalized( AVector::Normalized( sweepPoints[ i ] - sweepPoints[ i - 1 ] ) +
                                                   AVector::Normalized( sweepPoints[ i + 1 ] - sweepPoints[ i ] ) ) );
-            float angle = acosf( AVector::Dot( AVector::Normalized( sweepPoints[ i ] - sweepPoints[ i - 1 ] ),
+            double angle = acos( AVector::Dot( AVector::Normalized( sweepPoints[ i ] - sweepPoints[ i - 1 ] ),
                                                     AVector::Normalized( sweepPoints[ i ] - sweepPoints[ i + 1 ] ) ) );
-            k.push_back( 1.0f / sinf( angle / 2.0f ) );
+            k.push_back( 1.0 / sin( angle / 2.0 ) );
         }
         fDirs.push_back( AVector::Normalized( sweepPoints[ sweepPoints.size() - 1 ] - sweepPoints[ sweepPoints.size() - 2 ] ) );
-        k.push_back( 1.0f );
+        k.push_back( 1.0 );
 
         auto up = AVector::New( 0, 0, 1 );
         for( int i = 0; i < sweepPoints.size(); i++ ) {
@@ -122,7 +122,7 @@ public:
 
         return result;
     }
-    std::vector<TLoop> Revolve( TLoop profile, const TVector& axisLocation, const TVector& axisDirection, float revolveAngle, bool asClosed = true ) {
+    std::vector<TLoop> Revolve( TLoop profile, const TVector& axisLocation, const TVector& axisDirection, double revolveAngle, bool asClosed = true ) {
         if( profile.empty() ) {
             return {};
         }
@@ -142,9 +142,9 @@ public:
 
         result.push_back( this->m_geomUtils->SimplifyLoop( profile ) );
         int n = this->m_parameters->m_numVerticesPerCircle;
-        float deltaAngle = revolveAngle / (float)( n - 1 );
+        double deltaAngle = revolveAngle / (double)( n - 1 );
         for( int i = 1; i < n; i++ ) {
-            auto m = TMatrix::GetRotation( deltaAngle * (float)i, axisDirection );
+            auto m = TMatrix::GetRotation( deltaAngle * i, axisDirection );
             auto p = m.GetTransformedLoop( profile );
             const auto connection = this->ConnectLoops( result[ i - 1 ], p );
             std::copy( std::begin( connection ), std::end( connection ), std::back_inserter( result ) );

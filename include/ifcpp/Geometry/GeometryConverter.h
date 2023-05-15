@@ -218,13 +218,13 @@ public:
 
             shared_ptr<IfcCylindricalSurface> cylindrical_surface = dynamic_pointer_cast<IfcCylindricalSurface>( elementary_surface );
             if( cylindrical_surface ) {
-                auto radius = (float)cylindrical_surface->m_Radius->m_value;
+                auto radius = cylindrical_surface->m_Radius->m_value;
                 int nvc = this->m_parameters->m_numVerticesPerCircle; // TODO: Use radius
-                auto circle = this->m_geomUtils->BuildCircle( radius, 0, (float)M_PI * 2.0f, nvc );
+                auto circle = this->m_geomUtils->BuildCircle( radius, 0, M_PI * 2.0, nvc );
                 for( auto& p: circle ) {
                     p.z = -this->m_parameters->m_modelMaxSize;
                 }
-                auto result = this->m_extruder->Extrude( circle, AVector::New( 0, 0, 2.0f * this->m_parameters->m_modelMaxSize ), false );
+                auto result = this->m_extruder->Extrude( circle, AVector::New( 0, 0, 2.0 * this->m_parameters->m_modelMaxSize ), false );
                 planeMatrix.TransformLoops( &result );
                 return result;
             }
@@ -243,7 +243,7 @@ public:
             shared_ptr<IfcSurfaceOfLinearExtrusion> linear_extrusion = dynamic_pointer_cast<IfcSurfaceOfLinearExtrusion>( swept_surface );
             if( linear_extrusion ) {
                 const auto extrusion = this->m_primitivesConverter->ConvertPoint( linear_extrusion->m_ExtrudedDirection->m_DirectionRatios ) *
-                    (float)linear_extrusion->m_Depth->m_value;
+                    linear_extrusion->m_Depth->m_value;
                 auto result = this->m_extruder->Extrude( curve, extrusion, false );
                 m.TransformLoops( &result );
                 return result;
@@ -253,7 +253,7 @@ public:
             if( surface_of_revolution ) {
                 const auto axisDirection = this->m_primitivesConverter->ConvertPoint( surface_of_revolution->m_AxisPosition->m_Axis->m_DirectionRatios );
                 const auto axisLocation = this->m_primitivesConverter->ConvertPoint( surface_of_revolution->m_AxisPosition->m_Location );
-                auto result = this->m_extruder->Revolve( curve, axisLocation, axisDirection, (float)M_PI * 2.0f, false );
+                auto result = this->m_extruder->Revolve( curve, axisLocation, axisDirection, M_PI * 2.0, false );
                 m.TransformLoops( &result );
                 return result;
             }

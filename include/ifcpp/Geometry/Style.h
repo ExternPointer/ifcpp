@@ -14,7 +14,7 @@ public:
     };
     class Color {
     public:
-        float r = 0, g = 0, b = 0, a = 0;
+        double r = 0, g = 0, b = 0, a = 0;
     };
     Color m_color;
     Type m_type = UNDEFINED;

@@ -105,8 +105,8 @@ public:
         , m_splineConverter( splineConverter )
         , m_styleConverter( styleConverter )
         , m_parameters( parameters ) {
-        this->m_parameters->m_lengthFactor = (float)ifcModel->getUnitConverter()->getLengthInMeterFactor();
-        this->m_parameters->m_angleFactor = (float)ifcModel->getUnitConverter()->getAngleInRadiantFactor();
+        this->m_parameters->m_lengthFactor = ifcModel->getUnitConverter()->getLengthInMeterFactor();
+        this->m_parameters->m_angleFactor = ifcModel->getUnitConverter()->getAngleInRadiantFactor();
     }
 
     std::vector<TEntity> GenerateGeometry() {
@@ -485,13 +485,13 @@ private:
     std::shared_ptr<Style> GetDefaultStyleForObject( const std::shared_ptr<IfcObjectDefinition>& object ) {
         auto style = std::make_shared<Style>();
         style->m_type = Style::SURFACE_BOTH;
-        style->m_color = { 1.0f, 1.0f, 1.0f, 1.0f };
+        style->m_color = { 1.0, 1.0, 1.0, 1.0 };
 
         if( std::dynamic_pointer_cast<IfcWall>( object ) ) {
-            style->m_color = { 231.0f / 255.0f, 219.0f / 255.0f, 169.0f / 255.0f, 1.0f };
+            style->m_color = { 231.0 / 255.0, 219.0 / 255.0, 169.0 / 255.0, 1.0 };
         }
         if( std::dynamic_pointer_cast<IfcSlab>( object ) ) {
-            style->m_color = { 140.0f / 255.0f, 140.0f / 255.0f, 140.0f / 255.0f, 1.0f };
+            style->m_color = { 140.0 / 255.0, 140.0 / 255.0, 140.0 / 255.0, 1.0 };
         }
         return style;
     }

@@ -55,13 +55,13 @@ public:
             return {};
         }
 
-        std::vector<float> weights;
-        std::vector<float> curvePointsCoords;
+        std::vector<double> weights;
+        std::vector<double> curvePointsCoords;
 
         const size_t numControlPoints = controlPoints.size();
         const size_t order = degree + 1; // the order of the curve is the degree of the resulting polynomial + 1
         const size_t numCurvePoints = numControlPoints * this->m_parameters->m_numVerticesPerControlPoint;
-        std::vector<float> knotVec;
+        std::vector<double> knotVec;
 
         //	set weighting factors to 1.0 in case of homogeneous curve
         weights.resize( numControlPoints + 1, 1.0 );
@@ -74,7 +74,7 @@ public:
 
             for( size_t ii = 0; ii < ifc_knots.size(); ++ii ) {
                 shared_ptr<IfcParameterValue>& knot_parameter = ifc_knots[ ii ];
-                auto knot_value = (float)knot_parameter->m_value;
+                auto knot_value = knot_parameter->m_value;
 
                 int num_multiply_knot_value = 1;
                 if( ifc_knot_mult.size() == ifc_knots.size() ) {
@@ -92,7 +92,7 @@ public:
                 std::vector<shared_ptr<IfcReal>>& ifc_vec_weigths = r_bspline_curve_with_knots->m_WeightsData;
                 weights.resize( ifc_vec_weigths.size() );
                 for( size_t i_weight = 0; i_weight < ifc_vec_weigths.size(); ++i_weight ) {
-                    weights[ i_weight ] = (float)ifc_vec_weigths[ i_weight ]->m_value;
+                    weights[ i_weight ] = ifc_vec_weigths[ i_weight ]->m_value;
                 }
             }
         }
@@ -132,7 +132,7 @@ public:
             shared_ptr<IfcRationalBSplineSurfaceWithKnots> r_bspline_surface_with_knots =
                 dynamic_pointer_cast<IfcRationalBSplineSurfaceWithKnots>( ifc_bspline_surface );
             if( r_bspline_surface_with_knots ) {
-                // std::vector<std::vector<float > >& weights = r_bspline_surface_with_knots->m_WeightsData;
+                // std::vector<std::vector<double > >& weights = r_bspline_surface_with_knots->m_WeightsData;
             }
         }
 
@@ -158,7 +158,7 @@ public:
     }
 
 
-    static void ComputeKnotVector( const size_t numControlPoints, const size_t order, std::vector<float>& knotVector ) {
+    static void ComputeKnotVector( const size_t numControlPoints, const size_t order, std::vector<double>& knotVector ) {
         const size_t n_plus_order = numControlPoints + order;
         const size_t n_plus_1 = numControlPoints + 1;
 
@@ -170,19 +170,19 @@ public:
         knotVector[ 0 ] = 0; // start the knot vector with 0
         for( size_t ii = 1; ii < n_plus_order; ++ii ) {
             if( ( ii >= order ) && ( ii < n_plus_1 ) ) {
-                knotVector[ ii ] = knotVector[ ii - 1 ] + 1.0f;
+                knotVector[ ii ] = knotVector[ ii - 1 ] + 1.0;
             } else {
                 knotVector[ ii ] = knotVector[ ii - 1 ];
             }
         }
     }
 
-    static void ComputeRationalBasisFunctions( const size_t order, const float t, const size_t numControlPoints, const std::vector<float>& knotVec,
-                                               std::vector<float>& weights, std::vector<float>& basisFunc ) {
+    static void ComputeRationalBasisFunctions( const size_t order, const double t, const size_t numControlPoints, const std::vector<double>& knotVec,
+                                               std::vector<double>& weights, std::vector<double>& basisFunc ) {
         const size_t n_plus_order = numControlPoints + order; // maximum number of knot values
 
         // first order nonrational basis function
-        std::vector<float> temp;
+        std::vector<double> temp;
         temp.resize( n_plus_order + 1 );
         for( size_t ii = 0; ii < n_plus_order - 1; ii++ ) {
             if( ( t >= knotVec[ ii ] ) && ( t < knotVec[ ii + 1 ] ) ) {
@@ -193,8 +193,8 @@ public:
         }
 
         // higher order nonrational basis function
-        float basis_func_part1; // first term of the basis function recursion relation
-        float basis_func_part2; // second term of the basis function recursion relation
+        double basis_func_part1; // first term of the basis function recursion relation
+        double basis_func_part2; // second term of the basis function recursion relation
         for( size_t kk = 2; kk <= order; ++kk ) {
             for( size_t ii = 0; ii <= n_plus_order - kk + 1; ++ii ) {
                 // skip if the lower order basis function is zero
@@ -221,12 +221,12 @@ public:
         }
 
         if( weights.size() < numControlPoints + 1 ) {
-            float resizeValue = 1.0;
+            double resizeValue = 1.0;
             weights.resize( numControlPoints + 1, resizeValue );
         }
 
         // compute sum for denominator of rational basis function
-        float sum = 0.0;
+        double sum = 0.0;
         for( size_t ii = 0; ii < numControlPoints; ++ii ) {
             sum = sum + temp[ ii ] * weights[ ii + 1 ];
         }
@@ -242,10 +242,10 @@ public:
     }
 
     static void CcomputeRationalBSpline( const size_t order, const size_t numCurvePoints, const std::vector<TVector>& controlPoints,
-                                         std::vector<float>& weights, std::vector<float>& knotVec, std::vector<float>& curvePoints ) {
+                                         std::vector<double>& weights, std::vector<double>& knotVec, std::vector<double>& curvePoints ) {
         // order: order of the BSpline basis function
-        std::vector<float> basis_func; // basis function for parameter value t
-        basis_func.resize( controlPoints.size() + 1, 0.0f );
+        std::vector<double> basis_func; // basis function for parameter value t
+        basis_func.resize( controlPoints.size() + 1, 0.0 );
 
         const size_t n_plus_order = controlPoints.size() + order; // number of knot values
         if( knotVec.size() != n_plus_order ) {
@@ -254,10 +254,10 @@ public:
             SplineConverter::ComputeKnotVector( controlPoints.size(), order, knotVec );
         }
 
-        float t = 0; // parameter value 0 <= t <= npts - k + 1
-        float step = knotVec[ knotVec.size() - 1 ] / ( (float)( numCurvePoints - 1 ) );
+        double t = 0; // parameter value 0 <= t <= npts - k + 1
+        double step = knotVec[ knotVec.size() - 1 ] / ( ( numCurvePoints - 1 ) );
 
-        std::vector<float> control_points_coords;
+        std::vector<double> control_points_coords;
         for( size_t ii = 0; ii < controlPoints.size(); ++ii ) {
             control_points_coords.push_back( controlPoints[ ii ].x );
             control_points_coords.push_back( controlPoints[ ii ].y );
@@ -265,7 +265,7 @@ public:
         }
 
         size_t offset_i = 0;
-        float temp;
+        double temp;
         for( size_t ii = 0; ii < numCurvePoints; ++ii ) {
             if( t > knotVec[ knotVec.size() - 1 ] - 0.000001 ) {
                 t = knotVec[ knotVec.size() - 1 ];

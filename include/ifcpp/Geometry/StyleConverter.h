@@ -186,7 +186,7 @@ public:
                     result->m_color = this->ConvertColorRgb( surface_style_shading->m_SurfaceColour );
                 }
                 if( surface_style_shading->m_Transparency ) {
-                    result->m_color.a = std::max( 0.0f, ( std::min( 1.0f, 1.0f - (float)surface_style_shading->m_Transparency->m_value ) ) );
+                    result->m_color.a = std::max( 0.0, ( std::min( 1.0, 1.0 - surface_style_shading->m_Transparency->m_value ) ) );
                 }
                 continue;
             }
@@ -251,7 +251,7 @@ public:
                 if( draughting_predefined_color->m_Name ) {
                     std::string name = draughting_predefined_color->m_Name->m_value;
                     if( std_iequal( name, "black" ) ) {
-                        return { 0.0f, 0.0f, 0.0f, 1.0f };
+                        return { 0.0, 0.0, 0.0, 1.0 };
                     } else if( std_iequal( name, "red" ) ) {
                         return { 1.0, 0.0, 0.0, 1.0 };
                     } else if( std_iequal( name, "green" ) ) {
@@ -278,15 +278,15 @@ public:
     Style::Color ConvertColorRgb( const shared_ptr<IfcColourRgb>& color_rgb ) {
         Style::Color color;
         if( color_rgb->m_Red ) {
-            color.r = (float)color_rgb->m_Red->m_value;
+            color.r = color_rgb->m_Red->m_value;
         }
         if( color_rgb->m_Green ) {
-            color.g = (float)color_rgb->m_Green->m_value;
+            color.g = color_rgb->m_Green->m_value;
         }
         if( color_rgb->m_Blue ) {
-            color.b = (float)color_rgb->m_Blue->m_value;
+            color.b = color_rgb->m_Blue->m_value;
         }
-        color.a = 1.0f;
+        color.a = 1.0;
         return color;
     }
 

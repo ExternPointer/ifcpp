@@ -39,22 +39,22 @@ public:
             // TODO: Log error
             return AVector::New();
         }
-        return this->ConvertPoint( vector->m_Orientation->m_DirectionRatios ) * (float)vector->m_Magnitude->m_value;
+        return this->ConvertPoint( vector->m_Orientation->m_DirectionRatios ) * vector->m_Magnitude->m_value;
     }
     TVector ConvertPoint( const std::vector<std::shared_ptr<IfcLengthMeasure>>& coords ) {
         if( coords.size() > 2 ) {
-            return AVector::New( (float)coords[ 0 ]->m_value, (float)coords[ 1 ]->m_value, (float)coords[ 2 ]->m_value );
+            return AVector::New( coords[ 0 ]->m_value, coords[ 1 ]->m_value, coords[ 2 ]->m_value );
         } else if( coords.size() > 1 ) {
-            return AVector::New( (float)coords[ 0 ]->m_value, (float)coords[ 1 ]->m_value, 0.0f );
+            return AVector::New( coords[ 0 ]->m_value, coords[ 1 ]->m_value, 0.0 );
         }
         // TODO: Log error
         return AVector::New();
     }
     TVector ConvertPoint( const std::vector<std::shared_ptr<IfcReal>>& coords ) {
         if( coords.size() > 2 ) {
-            return AVector::New( (float)coords[ 0 ]->m_value, (float)coords[ 1 ]->m_value, (float)coords[ 2 ]->m_value );
+            return AVector::New( coords[ 0 ]->m_value, coords[ 1 ]->m_value, coords[ 2 ]->m_value );
         } else if( coords.size() > 1 ) {
-            return AVector::New( (float)coords[ 0 ]->m_value, (float)coords[ 1 ]->m_value, 0.0f );
+            return AVector::New( coords[ 0 ]->m_value, coords[ 1 ]->m_value, 0.0 );
         }
         // TODO: Log error
         return AVector::New();
@@ -99,11 +99,11 @@ public:
         if( !placement ) {
             return TMatrix::GetIdentity();
         }
-        auto translate = AVector::New( 0.0f, 0.0f, 0.0f );
-        auto local_x = AVector::New( 1.0f, 0.0f, 0.0f );
-        auto local_y = AVector::New( 0.0f, 1.0f, 0.0f );
-        auto local_z = AVector::New( 0.0f, 0.0f, 1.0f );
-        auto ref_direction = AVector::New( 1.0f, 0.0f, 0.0f );
+        auto translate = AVector::New( 0.0, 0.0, 0.0 );
+        auto local_x = AVector::New( 1.0, 0.0, 0.0 );
+        auto local_y = AVector::New( 0.0, 1.0, 0.0 );
+        auto local_z = AVector::New( 0.0, 0.0, 1.0 );
+        auto ref_direction = AVector::New( 1.0, 0.0, 0.0 );
 
         if( !onlyRotation ) {
             translate = ConvertPoint( dynamic_pointer_cast<IfcCartesianPoint>( placement->m_Location ) );
@@ -122,7 +122,7 @@ public:
         }
 
         local_x = ref_direction;
-        auto z_axis = AVector::New( 0.0f, 0.0f, 1.0f );
+        auto z_axis = AVector::New( 0.0, 0.0, 1.0 );
         local_y = AVector::Cross( z_axis, local_x );
         local_x = AVector::Cross( local_y, local_z );
 
@@ -136,11 +136,11 @@ public:
         if( !placement ) {
             return TMatrix::GetIdentity();
         }
-        auto translate = AVector::New( 0.0f, 0.0f, 0.0f );
-        auto local_x = AVector::New( 1.0f, 0.0f, 0.0f );
-        auto local_y = AVector::New( 0.0f, 1.0f, 0.0f );
-        auto local_z = AVector::New( 0.0f, 0.0f, 1.0f );
-        auto ref_direction = AVector::New( 1.0f, 0.0f, 0.0f );
+        auto translate = AVector::New( 0.0, 0.0, 0.0 );
+        auto local_x = AVector::New( 1.0, 0.0, 0.0 );
+        auto local_y = AVector::New( 0.0, 1.0, 0.0 );
+        auto local_z = AVector::New( 0.0, 0.0, 1.0 );
+        auto ref_direction = AVector::New( 1.0, 0.0, 0.0 );
 
         if( !onlyRotation ) {
             translate = this->ConvertPoint( placement->m_Location );
@@ -238,14 +238,14 @@ public:
             return TMatrix::GetIdentity();
         }
 
-        auto translate = AVector::New( 0.0f, 0.0f, 0.0f );
-        auto local_x = AVector::New( 1.0f, 0.0f, 0.0f );
-        auto local_y = AVector::New( 0.0f, 1.0f, 0.0f );
-        auto local_z = AVector::New( 0.0f, 0.0f, 1.0f );
+        auto translate = AVector::New( 0.0, 0.0, 0.0 );
+        auto local_x = AVector::New( 1.0, 0.0, 0.0 );
+        auto local_y = AVector::New( 0.0, 1.0, 0.0 );
+        auto local_z = AVector::New( 0.0, 0.0, 1.0 );
 
-        float scale = 1.0f;
-        float scale_y = 1.0f;
-        float scale_z = 1.0f;
+        double scale = 1.0;
+        double scale_y = 1.0;
+        double scale_z = 1.0;
 
         shared_ptr<IfcCartesianTransformationOperator2D> trans_operator_2d =
             dynamic_pointer_cast<IfcCartesianTransformationOperator2D>( transformationOperator );
@@ -257,10 +257,10 @@ public:
             }
             double x = trans_operator_2d->m_LocalOrigin->m_Coordinates[ 0 ]->m_value;
             double y = trans_operator_2d->m_LocalOrigin->m_Coordinates[ 1 ]->m_value;
-            translate = AVector::New( x, y, 0.0f );
+            translate = AVector::New( x, y, 0.0 );
 
             if( trans_operator_2d->m_Scale ) {
-                scale = (float)trans_operator_2d->m_Scale->m_value;
+                scale = trans_operator_2d->m_Scale->m_value;
             }
             scale_y = scale;
             scale_z = scale;
@@ -280,7 +280,7 @@ public:
             shared_ptr<IfcCartesianTransformationOperator2DnonUniform> non_uniform =
                 dynamic_pointer_cast<IfcCartesianTransformationOperator2DnonUniform>( transformationOperator );
             if( non_uniform && non_uniform->m_Scale2 ) {
-                scale_y = (float)non_uniform->m_Scale2->m_value;
+                scale_y = non_uniform->m_Scale2->m_value;
             }
         } else {
             // ENTITY IfcCartesianTransformationOperator3D SUPERTYPE OF(IfcCartesianTransformationOperator3DnonUniform)
@@ -292,12 +292,12 @@ public:
             }
             if( trans_operator_3d->m_LocalOrigin->m_Coordinates[ 0 ] && trans_operator_3d->m_LocalOrigin->m_Coordinates[ 1 ] &&
                 trans_operator_3d->m_LocalOrigin->m_Coordinates[ 2 ] ) {
-                translate.x = (float)trans_operator_3d->m_LocalOrigin->m_Coordinates[ 0 ]->m_value;
-                translate.y = (float)trans_operator_3d->m_LocalOrigin->m_Coordinates[ 1 ]->m_value;
-                translate.z = (float)trans_operator_3d->m_LocalOrigin->m_Coordinates[ 2 ]->m_value;
+                translate.x = trans_operator_3d->m_LocalOrigin->m_Coordinates[ 0 ]->m_value;
+                translate.y = trans_operator_3d->m_LocalOrigin->m_Coordinates[ 1 ]->m_value;
+                translate.z = trans_operator_3d->m_LocalOrigin->m_Coordinates[ 2 ]->m_value;
             }
             if( trans_operator_3d->m_Scale ) {
-                scale = (float)trans_operator_3d->m_Scale->m_value;
+                scale = trans_operator_3d->m_Scale->m_value;
             }
             scale_y = scale;
             scale_z = scale;
@@ -326,10 +326,10 @@ public:
                 dynamic_pointer_cast<IfcCartesianTransformationOperator3DnonUniform>( transformationOperator );
             if( non_uniform ) {
                 if( non_uniform->m_Scale2 ) {
-                    scale_y = (float)non_uniform->m_Scale2->m_value;
+                    scale_y = non_uniform->m_Scale2->m_value;
                 }
                 if( non_uniform->m_Scale3 ) {
-                    scale_z = (float)non_uniform->m_Scale3->m_value;
+                    scale_z = non_uniform->m_Scale3->m_value;
                 }
             }
         }

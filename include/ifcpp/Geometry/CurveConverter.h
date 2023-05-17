@@ -124,17 +124,17 @@ public:
                     if( conic ) {
                         // ENTITY IfcConic ABSTRACT SUPERTYPE OF(ONEOF(IfcCircle, IfcEllipse))
                         const auto placement = this->m_primitivesConverter->ConvertPlacement( conic->m_Position );
-                        float radius1 = 0.0f;
-                        float radius2 = 0.0f;
+                        double radius1 = 0.0;
+                        double radius2 = 0.0;
 
                         const auto ellipse = dynamic_pointer_cast<IfcEllipse>( conic );
                         if( ellipse && ellipse->m_SemiAxis1 && ellipse->m_SemiAxis2 ) {
-                            radius1 = (float)ellipse->m_SemiAxis1->m_value;
-                            radius2 = (float)ellipse->m_SemiAxis2->m_value;
+                            radius1 = ellipse->m_SemiAxis1->m_value;
+                            radius2 = ellipse->m_SemiAxis2->m_value;
                         }
                         const auto circle = dynamic_pointer_cast<IfcCircle>( conic );
                         if( circle && circle->m_Radius ) {
-                            radius1 = radius2 = (float)circle->m_Radius->m_value;
+                            radius1 = radius2 = circle->m_Radius->m_value;
                         }
 
                         int n = this->m_parameters->m_numVerticesPerCircle; // TODO: should be calculated from radius
@@ -208,23 +208,23 @@ public:
         if( conic ) {
             // ENTITY IfcConic ABSTRACT SUPERTYPE OF(ONEOF(IfcCircle, IfcEllipse))
             const auto placement = this->m_primitivesConverter->ConvertPlacement( conic->m_Position );
-            float radius1 = 0.0f;
-            float radius2 = 0.0f;
+            double radius1 = 0.0;
+            double radius2 = 0.0;
 
             const auto ellipse = dynamic_pointer_cast<IfcEllipse>( conic );
             if( ellipse && ellipse->m_SemiAxis1 && ellipse->m_SemiAxis2 ) {
-                radius1 = (float)ellipse->m_SemiAxis1->m_value;
-                radius2 = (float)ellipse->m_SemiAxis2->m_value;
+                radius1 = ellipse->m_SemiAxis1->m_value;
+                radius2 = ellipse->m_SemiAxis2->m_value;
             }
             shared_ptr<IfcCircle> circle = dynamic_pointer_cast<IfcCircle>( conic );
             if( circle && circle->m_Radius ) {
-                radius1 = radius2 = (float)circle->m_Radius->m_value;
+                radius1 = radius2 = circle->m_Radius->m_value;
             }
 
             int n = this->m_parameters->m_numVerticesPerCircle; // TODO: should be calculated from radius
             n = std::max( n, this->m_parameters->m_minNumVerticesPerArc );
             if( radius1 > this->m_parameters->m_epsilon && radius2 > this->m_parameters->m_epsilon ) {
-                result = this->m_geomUtils->BuildEllipse( radius1, radius2, 0.0f, (float)( M_PI * 2 ), n );
+                result = this->m_geomUtils->BuildEllipse( radius1, radius2, 0.0, ( M_PI * 2 ), n );
             } else {
                 result.push_back( AVector::New() );
             }
@@ -236,8 +236,8 @@ public:
             const auto origin = this->m_primitivesConverter->ConvertPoint( line->m_Pnt );
             const auto direction = AVector::Normalized( this->m_primitivesConverter->ConvertVector( line->m_Dir ) );
             result = {
-                origin - direction * this->m_parameters->m_modelMaxSize * 0.5f,
-                origin + direction * this->m_parameters->m_modelMaxSize * 0.5f,
+                origin - direction * this->m_parameters->m_modelMaxSize * 0.5,
+                origin + direction * this->m_parameters->m_modelMaxSize * 0.5,
             };
         }
 
@@ -259,11 +259,12 @@ public:
             result = {};
         }
 
+        auto resultCopy = result;
         {
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_curveToPointsMapMutex );
 #endif
-            this->m_curveToPointsMap[ curve ] = result;
+            this->m_curveToPointsMap[ curve ] = std::move( resultCopy );
         }
         return result;
     }
@@ -304,10 +305,10 @@ public:
     }
 
 private:
-    std::tuple<float, float> GetTrimmingsForCircle( const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t1,
-                                                    const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t2, TVector center, bool senseAgreement ) {
-        float l = this->GetTrimmingForCircle( t1, center );
-        float r = this->GetTrimmingForCircle( t2, center );
+    std::tuple<double, double> GetTrimmingsForCircle( const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t1,
+                                                      const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t2, TVector center, bool senseAgreement ) {
+        double l = this->GetTrimmingForCircle( t1, center );
+        double r = this->GetTrimmingForCircle( t2, center );
 
         if( senseAgreement && l < r ) {
             return { l, r - l };
@@ -321,10 +322,10 @@ private:
         if( !senseAgreement && l > r ) {
             return { l, l - r };
         }
-        return { l, 0.0f };
+        return { l, 0.0 };
     }
 
-    float GetTrimmingForCircle( std::vector<std::shared_ptr<IfcTrimmingSelect>> t, TVector center ) {
+    double GetTrimmingForCircle( std::vector<std::shared_ptr<IfcTrimmingSelect>> t, TVector center ) {
         if( t.size() > 1 && std::dynamic_pointer_cast<IfcParameterValue>( t[ 1 ] ) ) {
             std::swap( t[ 0 ], t[ 1 ] );
         }
@@ -333,34 +334,35 @@ private:
             const auto dir = AVector::Normalized( this->m_primitivesConverter->ConvertPoint( cartesianPoint ) - center );
             // TODO: Verify code
             if( dir.x >= this->m_parameters->m_epsilon && dir.y >= this->m_parameters->m_epsilon ) {
-                return acosf( AVector::Dot( AVector::New( 1, 0, 0 ), dir ) );
+                return acos( AVector::Dot( AVector::New( 1, 0, 0 ), dir ) );
             } else if( dir.x < -this->m_parameters->m_epsilon && dir.y >= this->m_parameters->m_epsilon ) {
-                return M_PI_2 + acosf( AVector::Dot( AVector::New( 0, 1, 0 ), dir ) );
+                return M_PI_2 + acos( AVector::Dot( AVector::New( 0, 1, 0 ), dir ) );
             } else if( dir.x < -this->m_parameters->m_epsilon && dir.y < -this->m_parameters->m_epsilon ) {
-                return M_PI + acosf( AVector::Dot( AVector::New( -1, 0, 0 ), dir ) );
+                return M_PI + acos( AVector::Dot( AVector::New( -1, 0, 0 ), dir ) );
             } else {
-                return M_PI + M_PI_2 + acosf( AVector::Dot( AVector::New( 0, -1, 0 ), dir ) );
+                return M_PI + M_PI_2 + acos( AVector::Dot( AVector::New( 0, -1, 0 ), dir ) );
             }
         }
         const auto parameterValue = std::dynamic_pointer_cast<IfcParameterValue>( t[ 0 ] );
         if( parameterValue ) {
-            return (float)( parameterValue->m_value * this->m_parameters->m_angleFactor );
+            return ( parameterValue->m_value * this->m_parameters->m_angleFactor );
         }
         // TODO: Log error
         return 0;
     }
 
-    std::tuple<float, float> GetTrimmingsForLine( const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t1,
-                                                  const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t2, TVector origin, TVector dir, bool senseArgement ) {
-        float l = this->GetTrimmingForLine( t1, origin, dir );
-        float r = this->GetTrimmingForLine( t2, origin, dir );
+    std::tuple<double, double> GetTrimmingsForLine( const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t1,
+                                                    const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t2, TVector origin, TVector dir,
+                                                    bool senseArgement ) {
+        double l = this->GetTrimmingForLine( t1, origin, dir );
+        double r = this->GetTrimmingForLine( t2, origin, dir );
         if( senseArgement && l > r || !senseArgement && l < r ) {
             std::swap( l, r );
         }
         return { l, r };
     }
 
-    float GetTrimmingForLine( std::vector<std::shared_ptr<IfcTrimmingSelect>> t, TVector origin, TVector dir ) {
+    double GetTrimmingForLine( std::vector<std::shared_ptr<IfcTrimmingSelect>> t, TVector origin, TVector dir ) {
         if( t.size() > 1 && std::dynamic_pointer_cast<IfcParameterValue>( t[ 1 ] ) ) {
             std::swap( t[ 0 ], t[ 1 ] );
         }
@@ -370,7 +372,7 @@ private:
         }
         const auto parameterValue = std::dynamic_pointer_cast<IfcParameterValue>( t[ 0 ] );
         if( parameterValue ) {
-            return (float)parameterValue->m_value;
+            return parameterValue->m_value;
         }
         // TODO: Log error
         return 0;
@@ -378,10 +380,10 @@ private:
 
     TVector GetClosestPointOnCurve( const TCurve& curve, const TVector& point ) {
         TVector result = curve[ 0 ];
-        float distance2 = AVector::Len2( point - result );
+        double distance2 = AVector::Len2( point - result );
         for( int i = 1; i < curve.size(); i++ ) {
             TVector r = this->m_geomUtils->ClosestPointOnEdge( curve[ i - 1 ], curve[ i ], point );
-            float d2 = AVector::Len2( point - r );
+            double d2 = AVector::Len2( point - r );
             if( d2 < distance2 ) {
                 result = r;
                 distance2 = d2;

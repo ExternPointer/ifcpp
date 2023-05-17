@@ -19,8 +19,8 @@ class BoundingBox {
     using AVector = VectorAdapter<TVector>;
 
 public:
-    TVector m_min = AVector::New( std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max() );
-    TVector m_max = AVector::New( -std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), -std::numeric_limits<float>::max() );
+    TVector m_min = AVector::New( std::numeric_limits<double>::max(), std::numeric_limits<double>::max(), std::numeric_limits<double>::max() );
+    TVector m_max = AVector::New( -std::numeric_limits<double>::max(), -std::numeric_limits<double>::max(), -std::numeric_limits<double>::max() );
     BoundingBox() = default;
     explicit BoundingBox( const std::vector<TVector>& points ) {
         this->AddPoints( points );
@@ -59,7 +59,7 @@ public:
         if( AVector::Len2( this->m_right ) < 1e-6 ) {
             this->m_right = AVector::Normalized( AVector::Cross( this->m_normal, AVector::New( 0, -1, 0 ) ) );
         }
-        this->m_up = AVector::Cross( this->m_normal, this->m_right );
+        this->m_up = AVector::Normalized(AVector::Cross( this->m_normal, this->m_right ));
     }
     std::vector<TVector> GetProjection( const std::vector<TVector>& points ) const {
         std::vector<TVector> result;
@@ -94,9 +94,9 @@ public:
     TVector Normal2d( const TVector& v1, const TVector& v2 ) {
         return Normal2d( v2 - v1 );
     }
-    std::tuple<float, float> ProjectEdge( const TVector& a, const TVector& b, const TVector& axis ) {
-        float l = AVector::Dot( axis, a );
-        float r = AVector::Dot( axis, b );
+    std::tuple<double, double> ProjectEdge( const TVector& a, const TVector& b, const TVector& axis ) {
+        double l = AVector::Dot( axis, a );
+        double r = AVector::Dot( axis, b );
         if( l > r ) {
             std::swap( l, r );
         }
@@ -120,7 +120,7 @@ public:
         const auto f = AVector::Normalized( b - a );
         const auto [ l, r ] = this->ProjectEdge( a, b, f );
         const auto p = AVector::Dot( f, point - a );
-        return fabsf(AVector::Len( point - a ) - fabsf( p )) < this->m_parameters->m_epsilon && l <= p && p <= r;
+        return fabs(AVector::Len( point - a ) - fabs( p )) < this->m_parameters->m_epsilon && l <= p && p <= r;
     }
     std::vector<TVector> SimplifyLoop( std::vector<TVector> loop ) {
         loop.push_back( loop[ 0 ] );
@@ -191,7 +191,7 @@ public:
             int inResultIdx = -1;
             int loopIdx = -1;
             int pointIdx = -1;
-            float dist2 = std::numeric_limits<float>::max();
+            double dist2 = std::numeric_limits<double>::max();
 
             for( int ridx = 0; ridx < result.size(); ridx++ ) {
                 const auto& p1 = result[ ridx ];
@@ -296,24 +296,24 @@ public:
 
         return result;
     }
-    std::vector<TVector> BuildEllipse( float radius1, float radius2, float startAngle, float openingAngle, int verticesCount,
+    std::vector<TVector> BuildEllipse( double radius1, double radius2, double startAngle, double openingAngle, int verticesCount,
                                        TVector center = AVector::New() ) const {
         std::vector<TVector> points;
-        float angle = startAngle;
-        float delta = openingAngle / (float)( verticesCount - 1 );
+        double angle = startAngle;
+        double delta = openingAngle / ( verticesCount - 1 );
         for( int i = 0; i < verticesCount; ++i ) {
             points.push_back( AVector::New( radius1 * cos( angle ), radius2 * sin( angle ) ) + center );
             angle += delta;
         }
         return points;
     }
-    std::vector<TVector> BuildEllipse( float radius1, float radius2, float startAngle, float openingAngle, int verticesCount, float x, float y ) {
+    std::vector<TVector> BuildEllipse( double radius1, double radius2, double startAngle, double openingAngle, int verticesCount, double x, double y ) {
         return this->BuildEllipse( radius1, radius2, startAngle, openingAngle, verticesCount, AVector::New( x, y ) );
     }
-    std::vector<TVector> BuildCircle( float radius, float startAngle, float openingAngle, int verticesCount, TVector center = AVector::New() ) const {
+    std::vector<TVector> BuildCircle( double radius, double startAngle, double openingAngle, int verticesCount, TVector center = AVector::New() ) const {
         return this->BuildEllipse( radius, radius, startAngle, openingAngle, verticesCount, center );
     }
-    std::vector<TVector> BuildCircle( float radius, float startAngle, float openingAngle, int verticesCount, float x, float y ) const {
+    std::vector<TVector> BuildCircle( double radius, double startAngle, double openingAngle, int verticesCount, double x, double y ) const {
         return this->BuildCircle( radius, startAngle, openingAngle, verticesCount, AVector::New( x, y ) );
     }
     // p0, p1, p2 - points on arc
@@ -324,28 +324,28 @@ public:
         const auto v = p2 - p1;
 
         const auto w = AVector::Cross( t, u );
-        const float wsl = AVector::Len2( w );
+        const double wsl = AVector::Len2( w );
         if( wsl < this->m_parameters->m_epsilon ) {
             result.push_back( p0 );
             result.push_back( p1 );
             result.push_back( p2 );
         } else {
-            const float iwsl2 = 1.0f / ( 2.0f * wsl );
-            const float tt = AVector::Dot( t, t );
-            const float uu = AVector::Dot( u, u );
+            const double iwsl2 = 1.0 / ( 2.0 * wsl );
+            const double tt = AVector::Dot( t, t );
+            const double uu = AVector::Dot( u, u );
 
             const auto circ_center = p0 + ( u * tt * ( AVector::Dot( u, v ) ) - t * uu * ( AVector::Dot( t, v ) ) ) * iwsl2;
-            const auto circAxis = w * ( 1.0f / sqrtf( wsl ) );
+            const auto circAxis = w * ( 1.0 / sqrt( wsl ) );
             const auto center_p0 = p0 - circ_center;
             const auto center_p2 = p2 - circ_center;
             const auto center_p0_normalized = AVector::Normalized( center_p0 );
             const auto center_p2_normalized = AVector::Normalized( center_p2 );
 
-            const float openingAngle = acosf( AVector::Dot( center_p0_normalized, center_p2_normalized ) );
-            int n = (int)( this->m_parameters->m_numVerticesPerCircle * openingAngle / ( M_PI * 2.0f ) );
+            const double openingAngle = acos( AVector::Dot( center_p0_normalized, center_p2_normalized ) );
+            int n = (int)( this->m_parameters->m_numVerticesPerCircle * openingAngle / ( M_PI * 2.0 ) );
             n = std::max( n, this->m_parameters->m_minNumVerticesPerArc );
 
-            const float deltaAngle = openingAngle / (float)( n - 1 );
+            const double deltaAngle = openingAngle / (double)( n - 1 );
             double angle = 0;
             for( size_t kk = 0; kk < n; ++kk ) {
                 const auto m = TMatrix::GetRotation( -angle, circAxis );
@@ -368,11 +368,11 @@ public:
         for( const auto& a: loop ) {
             for( const auto& b: loop ) {
                 for( const auto& c: loop ) {
-                    const auto normal = AVector::Cross( b - a, c - b );
+                    const auto normal = AVector::Cross( a - b, c - b );
                     if( AVector::Len2( normal ) > AVector::Len2( planeNormal ) ) {
                         planeNormal = normal;
                     }
-                    if( AVector::Len2( planeNormal ) > this->m_parameters->m_epsilon * this->m_parameters->m_epsilon ) {
+                    if( AVector::Len2( planeNormal ) > this->m_parameters->m_epsilon ) {
                         goto BREAK;
                     }
                 }
@@ -391,11 +391,11 @@ public:
             v = v - bbox.m_min;
         }
 
-        float s = 0.0f;
+        double s = 0.0;
         for( int i = 1; i < loop.size(); i++ ) {
             const auto& v1 = loop[ i - 1 ];
             const auto& v2 = loop[ i ];
-            s += ( v1.y + v2.y ) * 0.5f * ( v1.x - v2.x );
+            s += ( v1.y + v2.y ) * 0.5 * ( v1.x - v2.x );
         }
 
         if( s < 0 ) {

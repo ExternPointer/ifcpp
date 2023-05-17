@@ -59,7 +59,7 @@ public:
         if( AVector::Len2( this->m_right ) < 1e-6 ) {
             this->m_right = AVector::Normalized( AVector::Cross( this->m_normal, AVector::New( 0, -1, 0 ) ) );
         }
-        this->m_up = AVector::Cross( this->m_normal, this->m_right );
+        this->m_up = AVector::Normalized(AVector::Cross( this->m_normal, this->m_right ));
     }
     std::vector<TVector> GetProjection( const std::vector<TVector>& points ) const {
         std::vector<TVector> result;

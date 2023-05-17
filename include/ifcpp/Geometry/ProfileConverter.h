@@ -114,11 +114,12 @@ public:
         }
 
 
+        auto resultCopy = result;
         {
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_profileToPointsMapMutex );
 #endif
-            this->m_profileToPointsMap[ profile ] = result;
+            this->m_profileToPointsMap[ profile ] = std::move( resultCopy );
         }
 
         return result;
@@ -636,9 +637,9 @@ private:
             const double sf = sin( flange_slope );
             const double cw = cos( web_slope );
             const double sw = sin( web_slope );
-            const double z1 = ( sf *
-                               ( ( width - 2.0 * ( fillet_radius + flange_edge_radius + tw - zw ) ) * cw -
-                                 2.0 * ( h - web_edge_radius - fillet_radius - tf + zf ) * sw ) ) /
+            const double z1 =
+                ( sf *
+                  ( ( width - 2.0 * ( fillet_radius + flange_edge_radius + tw - zw ) ) * cw - 2.0 * ( h - web_edge_radius - fillet_radius - tf + zf ) * sw ) ) /
                 ( 2.0 * ( cf * cw - sf * sw ) );
             const double z2 = tan( web_slope ) * ( h - web_edge_radius - fillet_radius - z1 - tf + zf );
             if( fillet_radius > this->m_parameters->m_epsilon ) {

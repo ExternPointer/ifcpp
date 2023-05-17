@@ -133,13 +133,17 @@ public:
     }
 
     std::vector<std::shared_ptr<TVisualObject>> ConvertBooleanResult( const shared_ptr<IfcBooleanResult>& booleanResult ) {
+        std::vector<std::shared_ptr<TVisualObject>>* cached = nullptr;
         {
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_booleanResultToVisualObjectMapMutex );
 #endif
             if( this->m_booleanResultToVisualObjectMap.contains( booleanResult ) ) {
-                return TVisualObject::Copy( this->m_adapter, this->m_booleanResultToVisualObjectMap[ booleanResult ] );
+                cached = &this->m_booleanResultToVisualObjectMap[ booleanResult ];
             }
+        }
+        if( cached ) {
+            return TVisualObject::Copy( this->m_adapter, *cached );
         }
 
         shared_ptr<IfcBooleanOperator>& ifc_boolean_operator = booleanResult->m_Operator;
@@ -198,11 +202,12 @@ public:
             o->AddStyles( styles );
         }
 
+        auto resultCopy = TVisualObject::Copy( this->m_adapter, operand1 );
         {
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_booleanResultToVisualObjectMapMutex );
 #endif
-            this->m_booleanResultToVisualObjectMap[ booleanResult ] = operand1;
+            this->m_booleanResultToVisualObjectMap[ booleanResult ] = std::move( resultCopy );
         }
         return operand1;
     }

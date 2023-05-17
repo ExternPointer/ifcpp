@@ -124,7 +124,8 @@ public:
         const auto entitiesPtr = &entities;
 
 #ifdef ENABLE_OPENMP
-#pragma omp parallel default( none ) firstprivate( ifcEntitiesCount, ifcEntitiesPtr, entitiesPtr )
+        Mutex entitiesPtrMutex;
+#pragma omp parallel default( none ) shared( entitiesPtrMutex, ifcEntitiesCount, ifcEntitiesPtr, entitiesPtr )
         {
             std::vector<TEntity> entitiesPerThread;
             entitiesPerThread.reserve( 1000 );
@@ -149,8 +150,10 @@ public:
             }
 
 #ifdef ENABLE_OPENMP
-#pragma omp critical( entititesLock )
-            { Helpers::AppendTo( entitiesPtr, entitiesPerThread ); };
+            {
+                ScopedLock lock( entitiesPtrMutex );
+                Helpers::AppendTo( entitiesPtr, entitiesPerThread );
+            };
         }
 #endif
         return entities;
@@ -214,13 +217,18 @@ private:
     std::vector<std::shared_ptr<TVisualObject>> ConvertRepresentation( const std::shared_ptr<IfcRepresentation>& representation ) {
         std::vector<std::shared_ptr<TVisualObject>> visualObjects;
 
+        std::vector<std::shared_ptr<TVisualObject>>* cached = nullptr;
         {
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_representationToVisualObjectMapMutex );
 #endif
             if( this->m_representationToVisualObjectMap.contains( representation ) ) {
-                return TVisualObject::Copy( this->m_adapter, this->m_representationToVisualObjectMap[ representation ] );
+                cached = &this->m_representationToVisualObjectMap[ representation ];
             }
+        }
+
+        if( cached ) {
+            return TVisualObject::Copy( this->m_adapter, *cached );
         }
 
         for( const auto& item: representation->m_Items ) {
@@ -233,11 +241,12 @@ private:
             vo->AddStyles( styles );
         }
 
+        auto resultCopy = TVisualObject::Copy( this->m_adapter, visualObjects );
         {
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_representationToVisualObjectMapMutex );
 #endif
-            this->m_representationToVisualObjectMap[ representation ] = TVisualObject::Copy( this->m_adapter, visualObjects );
+            this->m_representationToVisualObjectMap[ representation ] = std::move( resultCopy );
         }
         return visualObjects;
     }
@@ -246,13 +255,19 @@ private:
         // ENTITY IfcRepresentationItem  ABSTRACT SUPERTYPE OF(ONEOF(IfcGeometricRepresentationItem,
         // IfcMappedItem, IfcStyledItem, IfcTopologicalRepresentationItem));
 
+
+        std::vector<std::shared_ptr<TVisualObject>>* cached = nullptr;
         {
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_representationItemToVisualObjectMapMutex );
 #endif
             if( this->m_representationItemToVisualObjectMap.contains( item ) ) {
-                return TVisualObject::Copy( this->m_adapter, this->m_representationItemToVisualObjectMap[ item ] );
+                cached = &this->m_representationItemToVisualObjectMap[ item ];
             }
+        }
+
+        if( cached ) {
+            return TVisualObject::Copy( this->m_adapter, *cached );
         }
 
         std::vector<std::shared_ptr<TVisualObject>> visualObjects;
@@ -274,11 +289,12 @@ private:
             vo->AddStyles( styles );
         }
 
+        auto resultCopy = TVisualObject::Copy( this->m_adapter, visualObjects );
         {
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_representationItemToVisualObjectMapMutex );
 #endif
-            this->m_representationItemToVisualObjectMap[ item ] = TVisualObject::Copy( this->m_adapter, visualObjects );
+            this->m_representationItemToVisualObjectMap[ item ] = std::move( resultCopy );
         }
         return visualObjects;
     }

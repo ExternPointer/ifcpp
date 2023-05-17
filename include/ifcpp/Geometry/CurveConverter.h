@@ -259,11 +259,12 @@ public:
             result = {};
         }
 
+        auto resultCopy = result;
         {
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_curveToPointsMapMutex );
 #endif
-            this->m_curveToPointsMap[ curve ] = result;
+            this->m_curveToPointsMap[ curve ] = std::move( resultCopy );
         }
         return result;
     }
@@ -305,7 +306,7 @@ public:
 
 private:
     std::tuple<double, double> GetTrimmingsForCircle( const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t1,
-                                                    const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t2, TVector center, bool senseAgreement ) {
+                                                      const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t2, TVector center, bool senseAgreement ) {
         double l = this->GetTrimmingForCircle( t1, center );
         double r = this->GetTrimmingForCircle( t2, center );
 
@@ -351,7 +352,8 @@ private:
     }
 
     std::tuple<double, double> GetTrimmingsForLine( const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t1,
-                                                  const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t2, TVector origin, TVector dir, bool senseArgement ) {
+                                                    const std::vector<std::shared_ptr<IfcTrimmingSelect>>& t2, TVector origin, TVector dir,
+                                                    bool senseArgement ) {
         double l = this->GetTrimmingForLine( t1, origin, dir );
         double r = this->GetTrimmingForLine( t2, origin, dir );
         if( senseArgement && l > r || !senseArgement && l < r ) {

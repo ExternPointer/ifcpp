@@ -52,7 +52,7 @@ public:
     }
 
     static bool IsNearlyEqual( const TVector& v1, const TVector& v2, double preccission = 1e-6 ) {
-        return abs( v1.x - v2.x ) < preccission && abs( v1.y - v2.y ) < preccission && abs( v1.z - v2.z ) < preccission;
+        return fabs( v1.x - v2.x ) < preccission && fabs( v1.y - v2.y ) < preccission && fabs( v1.z - v2.z ) < preccission;
     }
 };
 

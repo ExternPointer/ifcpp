@@ -120,7 +120,7 @@ public:
         const auto f = AVector::Normalized( b - a );
         const auto [ l, r ] = this->ProjectEdge( a, b, f );
         const auto p = AVector::Dot( f, point - a );
-        return abs(AVector::Len( point - a ) - abs( p )) < this->m_parameters->m_epsilon && l <= p && p <= r;
+        return fabs(AVector::Len( point - a ) - fabs( p )) < this->m_parameters->m_epsilon && l <= p && p <= r;
     }
     std::vector<TVector> SimplifyLoop( std::vector<TVector> loop ) {
         loop.push_back( loop[ 0 ] );

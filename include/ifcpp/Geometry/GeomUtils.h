@@ -335,7 +335,7 @@ public:
             const double uu = AVector::Dot( u, u );
 
             const auto circ_center = p0 + ( u * tt * ( AVector::Dot( u, v ) ) - t * uu * ( AVector::Dot( t, v ) ) ) * iwsl2;
-            const auto circAxis = w * ( 1.0 / sqrtf( wsl ) );
+            const auto circAxis = w * ( 1.0 / sqrt( wsl ) );
             const auto center_p0 = p0 - circ_center;
             const auto center_p2 = p2 - circ_center;
             const auto center_p0_normalized = AVector::Normalized( center_p0 );
@@ -368,11 +368,11 @@ public:
         for( const auto& a: loop ) {
             for( const auto& b: loop ) {
                 for( const auto& c: loop ) {
-                    const auto normal = AVector::Cross( b - a, c - b );
+                    const auto normal = AVector::Cross( a - b, c - b );
                     if( AVector::Len2( normal ) > AVector::Len2( planeNormal ) ) {
                         planeNormal = normal;
                     }
-                    if( AVector::Len2( planeNormal ) > this->m_parameters->m_epsilon * this->m_parameters->m_epsilon ) {
+                    if( AVector::Len2( planeNormal ) > this->m_parameters->m_epsilon ) {
                         goto BREAK;
                     }
                 }

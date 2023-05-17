@@ -438,7 +438,7 @@ private:
 
         auto planeMatrix = this->m_primitivesConverter->ConvertPlacement( elem_base_surface->m_Position );
         if( !halfSpaceSolid->m_AgreementFlag || halfSpaceSolid->m_AgreementFlag->m_value ) {
-            planeMatrix = Matrix<TVector>::GetMultiplied( Matrix<TVector>::GetScale( 1, 1, -1 ), planeMatrix );
+            planeMatrix = Matrix<TVector>::GetMultiplied( Matrix<TVector>::GetScale( -1, -1, -1 ), planeMatrix );
         }
 
         auto boxed = std::dynamic_pointer_cast<IfcBoxedHalfSpace>( halfSpaceSolid );
@@ -450,11 +450,9 @@ private:
         if( polygonal ) {
             auto boundaryProfile = this->m_geomUtils->SimplifyLoop( this->m_curveConverter->ConvertCurve( polygonal->m_PolygonalBoundary ) );
             const auto m = this->m_primitivesConverter->ConvertPlacement( polygonal->m_Position );
-
             for( auto& p: boundaryProfile ) {
                 p.z = -this->m_parameters->m_modelMaxSize * 0.5;
             }
-
             auto boundaryLoops = this->m_extruder->Extrude( boundaryProfile, AVector::New( 0, 0, 1 ) * this->m_parameters->m_modelMaxSize );
             m.TransformLoops( &boundaryLoops );
             const auto boundaryMesh = Helpers::CreateMesh( this->m_adapter, boundaryLoops );

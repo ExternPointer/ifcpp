@@ -19,7 +19,7 @@ public:
     }
 
     static double Len( const TVector& v ) {
-        return sqrtf( Len2( v ) );
+        return sqrt( Len2( v ) );
     }
 
     static double Len2( const TVector& v ) {

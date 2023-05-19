@@ -24,7 +24,7 @@ public:
     }
 
     template<CAdapter TAdapter>
-    static std::vector<typename TAdapter::TTriangle> CreateTriangles( const std::shared_ptr<TAdapter> adapter,
+    static std::vector<typename TAdapter::TTriangle> CreateTriangles( const std::shared_ptr<TAdapter>& adapter,
                                                                       const std::vector<std::vector<typename TAdapter::TVector>>& loops ) {
         std::vector<typename TAdapter::TTriangle> result;
         for( const auto& l: loops ) {
@@ -44,7 +44,7 @@ public:
     }
 
     template<CAdapter TAdapter>
-    static typename TAdapter::TMesh CreateMesh( const std::shared_ptr<TAdapter> adapter, const std::vector<std::vector<typename TAdapter::TVector>>& loops ) {
+    static typename TAdapter::TMesh CreateMesh( const std::shared_ptr<TAdapter>& adapter, const std::vector<std::vector<typename TAdapter::TVector>>& loops ) {
         return adapter->CreateMesh( Helpers::CreateTriangles( adapter, loops ) );
     }
 };

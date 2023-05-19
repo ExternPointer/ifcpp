@@ -77,13 +77,17 @@ public:
         // ENTITY IfcProfileDef SUPERTYPE OF(ONEOF(IfcArbitraryClosedProfileDef, IfcArbitraryOpenProfileDef, IfcCompositeProfileDef, IfcDerivedProfileDef,
         // IfcParameterizedProfileDef));
 
+        std::vector<TVector>* cached = nullptr;
         {
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_profileToPointsMapMutex );
 #endif
             if( this->m_profileToPointsMap.contains( profile ) ) {
-                return this->m_profileToPointsMap[ profile ];
+                cached = &this->m_profileToPointsMap[ profile ];
             }
+        }
+        if( cached ) {
+            return *cached;
         }
 
         std::vector<TVector> result;
@@ -119,7 +123,9 @@ public:
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_profileToPointsMapMutex );
 #endif
-            this->m_profileToPointsMap[ profile ] = std::move( resultCopy );
+            if( !this->m_profileToPointsMap.contains( profile ) ) {
+                this->m_profileToPointsMap[ profile ] = std::move( resultCopy );
+            }
         }
 
         return result;

@@ -207,7 +207,9 @@ public:
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_booleanResultToVisualObjectMapMutex );
 #endif
-            this->m_booleanResultToVisualObjectMap[ booleanResult ] = std::move( resultCopy );
+            if( !this->m_booleanResultToVisualObjectMap.contains( booleanResult ) ) {
+                this->m_booleanResultToVisualObjectMap[ booleanResult ] = std::move( resultCopy );
+            }
         }
         return operand1;
     }

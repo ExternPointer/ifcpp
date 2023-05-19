@@ -112,13 +112,17 @@ public:
     std::vector<std::shared_ptr<Style>> ConvertPresentationStyle( const shared_ptr<IfcPresentationStyle>& presentationStyle ) {
         // ENTITY IfcPresentationStyle	ABSTRACT SUPERTYPE OF(ONEOF(IfcCurveStyle, IfcFillAreaStyle, IfcSurfaceStyle, IfcSymbolStyle, IfcTextStyle));
 
+        std::vector<std::shared_ptr<Style>>* cached = nullptr;
         {
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_presentationStyleToStylesMapMutex );
 #endif
             if( this->m_presentationStyleToStylesMap.contains( presentationStyle ) ) {
-                return this->m_presentationStyleToStylesMap[ presentationStyle ];
+                cached = &this->m_presentationStyleToStylesMap[ presentationStyle ];
             }
+        }
+        if( cached ) {
+            return *cached;
         }
 
         std::vector<std::shared_ptr<Style>> result;
@@ -145,11 +149,14 @@ public:
             result = {};
         }
 
+        auto resultCopy = result;
         {
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_presentationStyleToStylesMapMutex );
 #endif
-            this->m_presentationStyleToStylesMap[ presentationStyle ] = result;
+            if( !this->m_presentationStyleToStylesMap.contains( presentationStyle ) ) {
+                this->m_presentationStyleToStylesMap[ presentationStyle ] = std::move( resultCopy );
+            }
         }
 
 

@@ -12,7 +12,6 @@ file( GLOB_RECURSE IFC_HEADERS include/ifcpp/Ifc *.h )
 file( GLOB_RECURSE IFC_SOURCES src/Ifc *.cpp )
 
 set( SOURCES
-        src/Model/AttributeObject.cpp
         src/Model/BuildingGuid.cpp
         src/Model/BuildingModel.cpp
         src/Model/UnitConverter.cpp

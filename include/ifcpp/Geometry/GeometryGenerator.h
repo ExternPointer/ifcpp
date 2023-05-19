@@ -153,7 +153,7 @@ public:
             {
                 ScopedLock lock( entitiesPtrMutex );
                 Helpers::AppendTo( entitiesPtr, entitiesPerThread );
-            };
+            }
         }
 #endif
         return entities;
@@ -246,7 +246,9 @@ private:
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_representationToVisualObjectMapMutex );
 #endif
-            this->m_representationToVisualObjectMap[ representation ] = std::move( resultCopy );
+            if( !this->m_representationToVisualObjectMap.contains( representation ) ) {
+                this->m_representationToVisualObjectMap[ representation ] = std::move( resultCopy );
+            }
         }
         return visualObjects;
     }
@@ -294,7 +296,9 @@ private:
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_representationItemToVisualObjectMapMutex );
 #endif
-            this->m_representationItemToVisualObjectMap[ item ] = std::move( resultCopy );
+            if( !this->m_representationItemToVisualObjectMap.contains( item ) ) {
+                this->m_representationItemToVisualObjectMap[ item ] = std::move( resultCopy );
+            }
         }
         return visualObjects;
     }

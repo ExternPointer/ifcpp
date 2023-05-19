@@ -77,13 +77,17 @@ public:
     TCurve ConvertCurve( const std::shared_ptr<IfcCurve>& curve ) {
         // ENTITY IfcCurve ABSTRACT SUPERTYPE OF (ONEOF(IfcBoundedCurve, IfcConic, IfcLine, IfcOffsetCurve2D, IfcOffsetCurve3D, IfcPCurve))
 
+        TCurve* cached = nullptr;
         {
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_curveToPointsMapMutex );
 #endif
             if( this->m_curveToPointsMap.contains( curve ) ) {
-                return this->m_curveToPointsMap[ curve ];
+                cached = &this->m_curveToPointsMap[ curve ];
             }
+        }
+        if( cached ) {
+            return *cached;
         }
 
         TCurve result;
@@ -264,7 +268,9 @@ public:
 #ifdef ENABLE_OPENMP
             ScopedLock lock( this->m_curveToPointsMapMutex );
 #endif
-            this->m_curveToPointsMap[ curve ] = std::move( resultCopy );
+            if( !this->m_curveToPointsMap.contains( curve ) ) {
+                this->m_curveToPointsMap[ curve ] = std::move( resultCopy );
+            }
         }
         return result;
     }

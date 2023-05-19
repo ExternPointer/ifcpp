@@ -64,11 +64,21 @@ public:
             // TODO: Log error
             return AVector::New();
         }
-        return ConvertPoint( cartesianPoint->m_Coordinates );
+        TVector result;
+        if( cartesianPoint->m_size > 0 ) {
+            result.x = cartesianPoint->m_Coordinates[0];
+        }
+        if( cartesianPoint->m_size > 1 ) {
+            result.y = cartesianPoint->m_Coordinates[1];
+        }
+        if( cartesianPoint->m_size > 2 ) {
+            result.z = cartesianPoint->m_Coordinates[2];
+        }
+        return result;
     }
     TVector ConvertPoint( const std::shared_ptr<IfcPoint>& point ) {
         if( const auto cartesianPoint = std::dynamic_pointer_cast<IfcCartesianPoint>( point ) ) {
-            return ConvertPoint( cartesianPoint->m_Coordinates );
+            return ConvertPoint( cartesianPoint );
         }
         // TODO: Log error
         return AVector::New();
@@ -251,12 +261,12 @@ public:
             dynamic_pointer_cast<IfcCartesianTransformationOperator2D>( transformationOperator );
         if( trans_operator_2d ) {
             // ENTITY IfcCartesianTransformationOperator2D SUPERTYPE OF(IfcCartesianTransformationOperator2DnonUniform)
-            if( !trans_operator_2d->m_LocalOrigin || trans_operator_2d->m_LocalOrigin->m_Coordinates.size() < 2 ) {
+            if( !trans_operator_2d->m_LocalOrigin || trans_operator_2d->m_LocalOrigin->m_size < 2 ) {
                 // TODO: Log error
                 return TMatrix::GetIdentity();
             }
-            double x = trans_operator_2d->m_LocalOrigin->m_Coordinates[ 0 ]->m_value;
-            double y = trans_operator_2d->m_LocalOrigin->m_Coordinates[ 1 ]->m_value;
+            double x = trans_operator_2d->m_LocalOrigin->m_Coordinates[ 0 ];
+            double y = trans_operator_2d->m_LocalOrigin->m_Coordinates[ 1 ];
             translate = AVector::New( x, y, 0.0 );
 
             if( trans_operator_2d->m_Scale ) {
@@ -286,16 +296,13 @@ public:
             // ENTITY IfcCartesianTransformationOperator3D SUPERTYPE OF(IfcCartesianTransformationOperator3DnonUniform)
             shared_ptr<IfcCartesianTransformationOperator3D> trans_operator_3d =
                 dynamic_pointer_cast<IfcCartesianTransformationOperator3D>( transformationOperator );
-            if( !trans_operator_3d || !trans_operator_3d->m_LocalOrigin || trans_operator_3d->m_LocalOrigin->m_Coordinates.size() < 3 ) {
+            if( !trans_operator_3d || !trans_operator_3d->m_LocalOrigin || trans_operator_3d->m_LocalOrigin->m_size < 3 ) {
                 // TODO: Log error
                 return TMatrix::GetIdentity();
             }
-            if( trans_operator_3d->m_LocalOrigin->m_Coordinates[ 0 ] && trans_operator_3d->m_LocalOrigin->m_Coordinates[ 1 ] &&
-                trans_operator_3d->m_LocalOrigin->m_Coordinates[ 2 ] ) {
-                translate.x = trans_operator_3d->m_LocalOrigin->m_Coordinates[ 0 ]->m_value;
-                translate.y = trans_operator_3d->m_LocalOrigin->m_Coordinates[ 1 ]->m_value;
-                translate.z = trans_operator_3d->m_LocalOrigin->m_Coordinates[ 2 ]->m_value;
-            }
+            translate.x = trans_operator_3d->m_LocalOrigin->m_Coordinates[ 0 ];
+            translate.y = trans_operator_3d->m_LocalOrigin->m_Coordinates[ 1 ];
+            translate.z = trans_operator_3d->m_LocalOrigin->m_Coordinates[ 2 ];
             if( trans_operator_3d->m_Scale ) {
                 scale = trans_operator_3d->m_Scale->m_value;
             }

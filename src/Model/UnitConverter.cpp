@@ -102,7 +102,7 @@ void UnitConverter::setAngleUnit(AngularUnit unit)
 	}
 	else
 	{
-		messageCallback("Could not set angular unit", StatusCallback::MESSAGE_TYPE_WARNING, __FUNC__);
+                SendMessage( "Could not set angular unit", StatusCallback::WARNING, __FUNC__ );
 	}
 }
 
@@ -112,7 +112,7 @@ void UnitConverter::setIfcProject( shared_ptr<IfcProject> project )
 
 	if( !project->m_UnitsInContext )
 	{
-		messageCallback( "IfcProject.UnitsInContext not defined", StatusCallback::MESSAGE_TYPE_WARNING, "" );
+                SendMessage( "IfcProject.UnitsInContext not defined", StatusCallback::WARNING, "" );
 		return;
 	}
 

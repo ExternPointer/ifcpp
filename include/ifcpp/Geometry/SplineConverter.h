@@ -36,34 +36,28 @@ public:
     }
 
     std::vector<TVector> ConvertBSplineCurve( const shared_ptr<IfcBSplineCurve>& bspline_curve ) const {
-        std::vector<TVector> result;
         if( !bspline_curve ) {
             return {};
         }
         if( !bspline_curve->m_Degree ) {
             return {};
         }
-        const int degree = bspline_curve->m_Degree->m_value;
-        const std::vector<shared_ptr<IfcCartesianPoint>>& control_points_ifc = bspline_curve->m_ControlPointsList;
-        // const shared_ptr<IfcBSplineCurveForm>&				curve_form = bspline_curve->m_CurveForm;
-        // const LogicalEnum									closed_curve = bspline_curve->m_ClosedCurve;
-        // const LogicalEnum									self_intersect = bspline_curve->m_ClosedCurve;
 
+        const std::vector<shared_ptr<IfcCartesianPoint>>& control_points_ifc = bspline_curve->m_ControlPointsList;
         std::vector<TVector> controlPoints = this->m_primitivesConverter->ConvertPoints( control_points_ifc );
 
         if( controlPoints.size() < 2 ) {
             return {};
         }
 
-        std::vector<double> weights;
-        std::vector<double> curvePointsCoords;
-
         const size_t numControlPoints = controlPoints.size();
+        const int degree = bspline_curve->m_Degree->m_value;
         const size_t order = degree + 1; // the order of the curve is the degree of the resulting polynomial + 1
         const size_t numCurvePoints = numControlPoints * this->m_parameters->m_numVerticesPerControlPoint;
-        std::vector<double> knotVec;
+        std::vector<double> knotVector;
 
         //	set weighting factors to 1.0 in case of homogeneous curve
+        std::vector<double> weights;
         weights.resize( numControlPoints + 1, 1.0 );
 
         shared_ptr<IfcBSplineCurveWithKnots> bspline_curve_with_knots = dynamic_pointer_cast<IfcBSplineCurveWithKnots>( bspline_curve );
@@ -74,7 +68,7 @@ public:
 
             for( size_t ii = 0; ii < ifc_knots.size(); ++ii ) {
                 shared_ptr<IfcParameterValue>& knot_parameter = ifc_knots[ ii ];
-                auto knot_value = knot_parameter->m_value;
+                double knot_value = knot_parameter->m_value;
 
                 int num_multiply_knot_value = 1;
                 if( ifc_knot_mult.size() == ifc_knots.size() ) {
@@ -82,7 +76,7 @@ public:
                 }
 
                 for( int jj = 0; jj < num_multiply_knot_value; ++jj ) {
-                    knotVec.push_back( knot_value );
+                    knotVector.push_back( knot_value );
                 }
             }
 
@@ -97,13 +91,17 @@ public:
             }
         }
 
+        std::vector<double> curvePointsCoords;
         curvePointsCoords.resize( 3 * numCurvePoints, 0.0 );
-        SplineConverter::CcomputeRationalBSpline( order, numCurvePoints, controlPoints, weights, knotVec, curvePointsCoords );
+        this->ComputeRationalBSpline( order, numCurvePoints, controlPoints, weights, knotVector, curvePointsCoords );
+
+
+        std::vector<TVector> result;
+        result.reserve( 3 * numCurvePoints );
 
         for( size_t ii = 0; ii < 3 * numCurvePoints; ii = ii + 3 ) {
             result.push_back( AVector::New( curvePointsCoords[ ii ], curvePointsCoords[ ii + 1 ], curvePointsCoords[ ii + 2 ] ) );
         }
-
         return this->m_geomUtils->SimplifyCurve( result );
     }
 
@@ -241,8 +239,11 @@ public:
         }
     }
 
-    static void CcomputeRationalBSpline( const size_t order, const size_t numCurvePoints, const std::vector<TVector>& controlPoints,
+    static void ComputeRationalBSpline( const size_t order, const size_t numCurvePoints, const std::vector<TVector>& controlPoints,
                                          std::vector<double>& weights, std::vector<double>& knotVec, std::vector<double>& curvePoints ) {
+        if( knotVec.size() < 2 ) {
+            return;
+        }
         // order: order of the BSpline basis function
         std::vector<double> basis_func; // basis function for parameter value t
         basis_func.resize( controlPoints.size() + 1, 0.0 );
@@ -251,11 +252,11 @@ public:
         if( knotVec.size() != n_plus_order ) {
             // generate a uniform open knot vector
             knotVec.resize( n_plus_order, 0.0 );
-            SplineConverter::ComputeKnotVector( controlPoints.size(), order, knotVec );
+            ComputeKnotVector( controlPoints.size(), order, knotVec );
         }
 
-        double t = 0; // parameter value 0 <= t <= npts - k + 1
-        double step = knotVec[ knotVec.size() - 1 ] / ( ( numCurvePoints - 1 ) );
+        double t = knotVec[ 0 ]; // parameter value 0 <= t <= npts - k + 1
+        double step = ( knotVec[ knotVec.size() - 1 ] - knotVec[ 0 ] ) / ( (double)( numCurvePoints - 1 ) );
 
         std::vector<double> control_points_coords;
         for( size_t ii = 0; ii < controlPoints.size(); ++ii ) {
@@ -272,7 +273,7 @@ public:
             }
 
             // generate the basis function for this value of t
-            SplineConverter::ComputeRationalBasisFunctions( order, t, controlPoints.size(), knotVec, weights, basis_func );
+            ComputeRationalBasisFunctions( order, t, controlPoints.size(), knotVec, weights, basis_func );
 
             for( size_t jj = 0; jj < 3; ++jj ) {
                 curvePoints[ offset_i + jj ] = 0.;

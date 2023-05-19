@@ -42,7 +42,7 @@ public:
 	{
 		if( !m_length_unit_found )
 		{
-			messageCallback( "No length unit definition found in model", StatusCallback::MESSAGE_TYPE_WARNING, __FUNC__ );
+                    SendMessage( "No length unit definition found in model", StatusCallback::WARNING, __FUNC__ );
 		}
 
 		return m_length_unit_factor * m_custom_length_factor;
@@ -62,7 +62,7 @@ public:
 	{
 		if( m_angular_unit == UNDEFINED )
 		{
-			messageCallback( "No plane angle unit definition found in model", StatusCallback::MESSAGE_TYPE_WARNING, __FUNC__ );
+                        SendMessage( "No plane angle unit definition found in model", StatusCallback::WARNING, __FUNC__ );
 		}
 		return m_plane_angle_factor;
 	}

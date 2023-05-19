@@ -4,23 +4,20 @@ MIT License
 
 Copyright (c) 2017 Fabian Gerold
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+    The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+                                                                           */
 
 #pragma once
 
-#pragma warning ( disable: 4996 )  // for boost\random\detail\polynomial.hpp
-
 #include <algorithm>
-#include <cwctype>
 #include <iostream>
 #include <filesystem>
 #include <limits>
@@ -40,11 +37,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OU
 #pragma warning(disable : 4996)
 #endif
 
-void readBoolList( const std::string& str, std::vector<bool>& vec );
+    void readBoolList( const std::string& str, std::vector<bool>& vec );
 void readIntegerList( const std::string& str, std::vector<int>& vec );
 void readIntegerList2D( const std::string& str, std::vector<std::vector<int> >& vec );
 void readIntegerList3D( const std::string& str, std::vector<std::vector<std::vector<int> > >& vec );
 void readRealList( const std::string& str, std::vector<double>& vec );
+void readRealArray( const std::string& str, double (&vec)[3], short int& size );
 void readRealList2D( const std::string& str, std::vector<std::vector<double> >& vec );
 void readRealList3D( const std::string& str, std::vector<std::vector<std::vector<double> > >& vec );
 void readBinary( const std::string& str, std::string& target );
@@ -61,777 +59,706 @@ void findLeadingTrailingParanthesis(char* ch, char*& pos_opening, char*& pos_clo
 void findEndOfString(const char*& stream_pos);
 bool findEndOfStepLine(char* ch, char*& pos_end);
 void checkOpeningClosingParenthesis(const char* ch_check);
+std::istream& bufferedGetline(std::istream& is, std::string& t);
+std::istream& bufferedGetStepLine(std::istream& inputStream, std::string& lineOut);
 
 IFCQUERY_EXPORT std::string wstring2string(const std::wstring& str);
 IFCQUERY_EXPORT std::wstring string2wstring(const std::string& inputString);
-
-IFCQUERY_EXPORT bool std_iequal(const std::wstring& a, const std::wstring& b);
 IFCQUERY_EXPORT bool std_iequal(const std::string& a, const std::string& b);
 
 inline std::string getFileExtension(std::string path)
 {
 #ifdef _MSC_VER
-	return std::filesystem::path(string2wstring(path)).extension().string();
+    return std::filesystem::path(string2wstring(path)).extension().string();
+#else
+    return std::filesystem::path(path).extension().string();
 #endif
-	return std::filesystem::path(path).extension().string();
-}
-
-inline void readIntegerValue( const std::string& str, int& int_value )
-{
-	if( str.compare( "$" ) == 0 )
-	{
-		int_value = std::numeric_limits<int>::quiet_NaN();
-	}
-	else if( str.compare( "*" ) == 0 )
-	{
-		int_value = std::numeric_limits<int>::quiet_NaN();
-	}
-	else
-	{
-		int_value = std::stoi( str );
-	}
 }
 
 IFCQUERY_EXPORT void decodeArgumentStrings( std::vector<std::string>& entity_arguments, std::vector<std::string>& args_out );
 
-inline void readBool( const std::string& attribute_value, bool& target )
-{
-	if( std_iequal( attribute_value, ".F." ) )
-	{
-		target = false;
-	}
-	else if( std_iequal( attribute_value, ".T." ) )
-	{
-		target = true;
-	}
-}
-
-inline void readLogical( const std::string& attribute_value, LogicalEnum& target )
-{
-	if( std_iequal(attribute_value, ".F." ) )
-	{
-		target = LOGICAL_FALSE;
-	}
-	else if( std_iequal( attribute_value, ".T." ) )
-	{
-		target = LOGICAL_TRUE;
-	}
-	else if( std_iequal( attribute_value, ".U." ) )
-	{
-		target = LOGICAL_UNKNOWN;
-	}
-}
-
-inline void readInteger( const std::string& attribute_value, int& target )
-{
-	target = std::stoi( attribute_value );
-}
-
-inline void readReal( const std::string& attribute_value, double& target )
-{
-	target = std::stod( attribute_value );
-}
-
-inline void readString( const std::string& attribute_value, std::string& target )
-{
-	if( attribute_value.size() < 2 )
-	{
-		target = attribute_value;
-		return;
-	}
-	if( attribute_value[0] == '\'' && attribute_value[attribute_value.size()-1] == '\'' )
-	{
-		target = attribute_value.substr( 1, attribute_value.size()-2 );
-	}
-	else
-	{
-		target = attribute_value;
-	}
-}
+void readBool(const std::string& attribute_value, bool& target);
+void readLogical(const std::string& attribute_value, LogicalEnum& target);
+void readInteger(const std::string& attribute_value, int& target);
+void readIntegerValue(const std::string& str, int& int_value);
+void readReal(const std::string& attribute_value, double& target);
+void readString(const std::string& attribute_value, std::string& target);
 
 template<typename T>
 void readTypeOfIntegerList( const std::string& str, std::vector<shared_ptr<T> >& target_vec )
 {
-	// example: (38,12,4)
-	char const* ch = str.c_str();
-	char const* last_token = nullptr;
+    // example: (38,12,4)
+    char const* ch = str.c_str();
+    char const* last_token = nullptr;
 
-	// ignore leading space or opening parenthesis
-	while( *ch != '\0' )
-	{
-		if( *ch == '(' )
-		{
-			checkOpeningClosingParenthesis( ch );
-			++ch;
-			last_token = ch;
-			break;
-		}
-		else if( isspace( *ch ) )	{	++ch; }
-		else { break; }
-	}
-	
-	while( *ch != '\0' )
-	{
-		if( isspace(*ch) )
-		{
-			++ch;
-			continue;
-		}
+    // ignore leading space or opening parenthesis
+    while( *ch != '\0' )
+    {
+        if( *ch == '(' )
+        {
+            checkOpeningClosingParenthesis( ch );
+            ++ch;
+            last_token = ch;
+            break;
+        }
+        else if( isspace( *ch ) )	{	++ch; }
+        else { break; }
+    }
 
-		while( *ch != ',' && *ch != '\0' && *ch != ')' )
-		{
-			++ch;
-		}
+    while( *ch != '\0' )
+    {
+        if( isspace(*ch) )
+        {
+            ++ch;
+            continue;
+        }
 
-		if( last_token != nullptr )
-		{
-			size_t length_str = ch - last_token;
-			if( length_str > 0 )
-			{
-				std::string int_str(last_token, length_str);
-				int int_value = 0;
-				try
-				{
-					int_value = std::stoi(int_str);
-				}
-				catch( std::exception&  )
-				{
+        while( *ch != ',' && *ch != '\0' && *ch != ')' )
+        {
+            ++ch;
+        }
+
+        if( last_token != nullptr )
+        {
+            size_t length_str = ch - last_token;
+            if( length_str > 0 )
+            {
+                std::string int_str(last_token, length_str);
+                int int_value = 0;
+                try
+                {
+                    int_value = std::stoi(int_str);
+                }
+                catch( std::exception&  )
+                {
 #ifdef _DEBUG
-					std::cout << "bad number: " << int_str << std::endl;
+                    std::cout << "bad number: " << int_str << std::endl;
 #endif
-				}
-				target_vec.push_back(shared_ptr<T>(new T(int_value)));
-			}
-		}
+                }
+                target_vec.push_back(shared_ptr<T>(new T(int_value)));
+            }
+        }
 
-		if( *ch == '\0' )
-		{
-			break;
-		}
-		
-		if( *ch == ')' )
-		{
-			break;
-		}
+        if( *ch == '\0' )
+        {
+            break;
+        }
+
+        if( *ch == ')' )
+        {
+            break;
+        }
 #ifdef _DEBUG
-		if( *ch != ',' )
-		{
-			std::cout << __FUNC__ << ": *ch != ','" << std::endl;
-		}
+        if( *ch != ',' )
+        {
+            std::cout << __FUNC__ << ": *ch != ','" << std::endl;
+        }
 #endif
 
-		++ch;
-		last_token = ch;
-	}
+        ++ch;
+        last_token = ch;
+    }
 }
 
 template<typename T>
 void readTypeOfIntegerList2D( const std::string& str, std::vector<std::vector<shared_ptr<T> > >& target_vec )
 {
-	// example: ((8,12,4),(58,10,34),(18,10,4))
-	char const* ch = str.c_str();
+    // example: ((8,12,4),(58,10,34),(18,10,4))
+    char const* ch = str.c_str();
 
-	const size_t argsize = str.size();
-	if( argsize == 0 )
-	{
-		return;
-	}
+    const size_t argsize = str.size();
+    if( argsize == 0 )
+    {
+        return;
+    }
 
-	//Optional lists can be represented by a $ sign
-	if( ch[0] == '$' )
-		return;
+    //Optional lists can be represented by a $ sign
+    if( ch[0] == '$' )
+        return;
 
-	if( ch[0] != '(' )
-	{
-		throw BuildingException( "string does not start with (", __FUNC__ );
-	}
-	size_t i = 0;
-	size_t last_token = 1;
-	int num_par_open = 0;
-	while( i<argsize )
-	{
-		if( ch[i] == ',' )
-		{
-			if( num_par_open == 1 )
-			{
-				target_vec.resize( target_vec.size()+1 );
-				std::string s = str.substr( last_token, i-last_token );
-				readTypeOfIntegerList( s, target_vec.back() );
-				last_token = i+1;
-			}
-		}
-		else if( ch[i] == '(' )
-		{
-			++num_par_open;
-		}
-		else if( ch[i] == ')' )
-		{
-			--num_par_open;
-			if( num_par_open == 0 )
-			{
-				// closing parenthesis found
-				target_vec.resize( target_vec.size()+1 );
-				std::string s = str.substr( last_token, i-last_token );
-				readTypeOfIntegerList( s, target_vec.back() );
-				return;
-			}
-		}
-		++i;
-	}
+    if( ch[0] != '(' )
+    {
+        throw BuildingException( "string does not start with (", __FUNC__ );
+    }
+    size_t i = 0;
+    size_t last_token = 1;
+    int num_par_open = 0;
+    while( i<argsize )
+    {
+        if( ch[i] == ',' )
+        {
+            if( num_par_open == 1 )
+            {
+                target_vec.resize( target_vec.size()+1 );
+                std::string s = str.substr( last_token, i-last_token );
+                readTypeOfIntegerList( s, target_vec.back() );
+                last_token = i+1;
+            }
+        }
+        else if( ch[i] == '(' )
+        {
+            ++num_par_open;
+        }
+        else if( ch[i] == ')' )
+        {
+            --num_par_open;
+            if( num_par_open == 0 )
+            {
+                // closing parenthesis found
+                target_vec.resize( target_vec.size()+1 );
+                std::string s = str.substr( last_token, i-last_token );
+                readTypeOfIntegerList( s, target_vec.back() );
+                return;
+            }
+        }
+        ++i;
+    }
 
-	// no closing parenthesis found
-	std::stringstream err;
-	err << "no closing parenthesis found: " << str << std::endl;
-	throw BuildingException( err.str(), __FUNC__ );
+    // no closing parenthesis found
+    std::stringstream err;
+    err << "no closing parenthesis found: " << str << std::endl;
+    throw BuildingException( err.str(), __FUNC__ );
 }
 
 template<typename T>
 void readTypeOfRealList( const std::string& str, std::vector<shared_ptr<T> >& target_vec )
 {
-	// example: (.38,12.0,.04)
-	char const* ch = str.c_str();
-	char const* last_token = nullptr;
+    // example: (.38,12.0,.04)
+    char const* ch = str.c_str();
+    char const* last_token = nullptr;
 
-	// ignore leading space or opening parenthesis
-	while( *ch != '\0' )
-	{
-		if( *ch == '(' )
-		{
-			checkOpeningClosingParenthesis( ch );
-			++ch;
-			last_token = ch;
-			break;
-		}
-		else if( isspace( *ch ) )	{	++ch; }
-		else { break; }
-	}
+    // ignore leading space or opening parenthesis
+    while( *ch != '\0' )
+    {
+        if( *ch == '(' )
+        {
+            checkOpeningClosingParenthesis( ch );
+            ++ch;
+            last_token = ch;
+            break;
+        }
+        else if( isspace( *ch ) )	{	++ch; }
+        else { break; }
+    }
 
-	while( *ch != '\0' )
-	{
-		if( isspace(*ch) )
-		{
-			++ch;
-			continue;
-		}
+    while( *ch != '\0' )
+    {
+        if( isspace(*ch) )
+        {
+            ++ch;
+            continue;
+        }
 
-		while( *ch != ',' && *ch != '\0' && *ch != ')' )
-		{
-			++ch;
-		}
+        while( *ch != ',' && *ch != '\0' && *ch != ')' )
+        {
+            ++ch;
+        }
 
-		if( last_token != nullptr )
-		{
-			size_t length_str = ch - last_token;
-			if( length_str > 0 )
-			{
-				std::string double_str(last_token, length_str);
-				double real_value = 0;
-				try
-				{
-					real_value = std::stod(double_str);
-				}
-				catch( std::exception&  )
-				{
+        if( last_token != nullptr )
+        {
+            size_t length_str = ch - last_token;
+            if( length_str > 0 )
+            {
+                std::string double_str(last_token, length_str);
+                double real_value = 0;
+                try
+                {
+                    real_value = std::stod(double_str);
+                }
+                catch( std::exception&  )
+                {
 
-				}
+                }
 
-				target_vec.push_back(shared_ptr<T>(new T(real_value)));
-			}
-		}
+                target_vec.push_back(shared_ptr<T>(new T(real_value)));
+            }
+        }
 
-		if( *ch == '\0' )
-		{
-			break;
-		}
-		
-		if( *ch == ')' )
-		{
-			break;
-		}
+        if( *ch == '\0' )
+        {
+            break;
+        }
+
+        if( *ch == ')' )
+        {
+            break;
+        }
 #ifdef _DEBUG
-		if( *ch != ',' )
-		{
-			std::cout << __FUNC__ << ": *ch != ','" << std::endl;
-		}
+        if( *ch != ',' )
+        {
+            std::cout << __FUNC__ << ": *ch != ','" << std::endl;
+        }
 #endif
 
-		++ch;
-		last_token = ch;
-	}
+        ++ch;
+        last_token = ch;
+    }
 }
 
 template<typename T>
 void readTypeOfRealList2D( const std::string& str, std::vector<std::vector<shared_ptr<T> > >& target_vec )
 {
-	// example: ((.38,12.0,.04),(.38,1.0,346.0),(1.8,1.0,.04))
-	char const* ch = str.c_str();
+    // example: ((.38,12.0,.04),(.38,1.0,346.0),(1.8,1.0,.04))
+    char const* ch = str.c_str();
 
-	const size_t argsize = str.size();
-	if( argsize == 0 )
-	{
-		return;
-	}
+    const size_t argsize = str.size();
+    if( argsize == 0 )
+    {
+        return;
+    }
 
-	//Optional lists can be represented by a $ sign
-	if( ch[0] == '$' )
-		return;
+    //Optional lists can be represented by a $ sign
+    if( ch[0] == '$' )
+        return;
 
-	if( ch[0] != '(' )
-	{
-		throw BuildingException( "string does not start with (", __FUNC__ );
-	}
-	size_t i=0;
-	size_t last_token = 1;
-	int num_par_open = 0;
-	while( i<argsize )
-	{
-		if( ch[i] == ',' )
-		{
-			if( num_par_open == 1 )
-			{
-				target_vec.resize(target_vec.size()+1);
-				std::string s = str.substr( last_token, i-last_token );
-				readTypeOfRealList( s, target_vec.back() );
-				last_token = i+1;
-			}
-		}
-		else if( ch[i] == '(' )
-		{
-			++num_par_open;
-		}
-		else if( ch[i] == ')' )
-		{
-			--num_par_open;
-			if( num_par_open == 0 )
-			{
-				// closing parenthesis found
-				target_vec.resize(target_vec.size()+1);
-				std::string s = str.substr( last_token, i-last_token );
-				readTypeOfRealList( s, target_vec.back() );
-				return;
-			}
-		}
-		++i;
-	}
+    if( ch[0] != '(' )
+    {
+        throw BuildingException( "string does not start with (", __FUNC__ );
+    }
+    size_t i=0;
+    size_t last_token = 1;
+    int num_par_open = 0;
+    while( i<argsize )
+    {
+        if( ch[i] == ',' )
+        {
+            if( num_par_open == 1 )
+            {
+                target_vec.resize(target_vec.size()+1);
+                std::string s = str.substr( last_token, i-last_token );
+                readTypeOfRealList( s, target_vec.back() );
+                last_token = i+1;
+            }
+        }
+        else if( ch[i] == '(' )
+        {
+            ++num_par_open;
+        }
+        else if( ch[i] == ')' )
+        {
+            --num_par_open;
+            if( num_par_open == 0 )
+            {
+                // closing parenthesis found
+                target_vec.resize(target_vec.size()+1);
+                std::string s = str.substr( last_token, i-last_token );
+                readTypeOfRealList( s, target_vec.back() );
+                return;
+            }
+        }
+        ++i;
+    }
 
-	// no closing parenthesis found
-	std::stringstream err;
-	err << "no closing parenthesis found: " << str << std::endl;
-	throw BuildingException( err.str(), __FUNC__ );
+    // no closing parenthesis found
+    std::stringstream err;
+    err << "no closing parenthesis found: " << str << std::endl;
+    throw BuildingException( err.str(), __FUNC__ );
 }
 
 template<typename T>
 void readTypeOfStringList( const char* str, std::vector<shared_ptr<T> >& target_vec )
 {
-	// example: ('Tahoma')
-	const char* ch = str;
-	const char* last_token = nullptr;
+    // example: ('Tahoma')
+    const char* ch = str;
+    const char* last_token = nullptr;
 
-	// ignore leading space or opening parenthesis
-	while( *ch != '\0' )
-	{
-		if( *ch == '(' )
-		{
-			checkOpeningClosingParenthesis( ch );
-			++ch;
-			last_token = ch;
-			break;
-		}
-		else if( isspace( *ch ) ) { ++ch; }
-		else { break; }
-	}
+    // ignore leading space or opening parenthesis
+    while( *ch != '\0' )
+    {
+        if( *ch == '(' )
+        {
+            checkOpeningClosingParenthesis( ch );
+            ++ch;
+            last_token = ch;
+            break;
+        }
+        else if( isspace( *ch ) ) { ++ch; }
+        else { break; }
+    }
 
-	while( *ch != '\0' )
-	{
-		if( isspace( *ch ) )
-		{
-			// ignore leading space characters
-			++ch;
-			continue;
-		}
+    while( *ch != '\0' )
+    {
+        if( isspace( *ch ) )
+        {
+            // ignore leading space characters
+            ++ch;
+            continue;
+        }
 
-		if ( *ch == '\'' )
-			findEndOfString( ch );
+        if ( *ch == '\'' )
+            findEndOfString( ch );
 
-		while( *ch != ',' && *ch != '\0' && *ch != ')' )
-		{
-			++ch;
-		}
+        while( *ch != ',' && *ch != '\0' && *ch != ')' )
+        {
+            ++ch;
+        }
 
-		if( last_token != nullptr )
-		{
-			size_t length_str = ch - last_token;
-			if( length_str > 0 )
-			{
-				std::string str_value( last_token, length_str );
-				if (length_str > 1)
-				{
-					if (str_value.front() == '\'' && str_value.back() == '\'')
-					{
-						// "'Tahoma'" -> "Tahoma"
-						str_value = str_value.substr(1, str_value.size() - 2);
-					}
-				}
-				target_vec.push_back( shared_ptr<T>( new T( str_value ) ) );
-			}
-		}
+        if( last_token != nullptr )
+        {
+            size_t length_str = ch - last_token;
+            if( length_str > 0 )
+            {
+                std::string str_value( last_token, length_str );
+                if (length_str > 1)
+                {
+                    if (str_value.front() == '\'' && str_value.back() == '\'')
+                    {
+                        // "'Tahoma'" -> "Tahoma"
+                        str_value = str_value.substr(1, str_value.size() - 2);
+                    }
+                }
+                target_vec.push_back( shared_ptr<T>( new T( str_value ) ) );
+            }
+        }
 
-		if( *ch == '\0' )
-		{
-			break;
-		}
+        if( *ch == '\0' )
+        {
+            break;
+        }
 
-		if( *ch == ')' )
-		{
-			break;
-		}
+        if( *ch == ')' )
+        {
+            break;
+        }
 #ifdef _DEBUG
-		if( *ch != ',' )
-		{
-			std::cout << __FUNC__ << ": *ch != ','" << std::endl;
-		}
+        if( *ch != ',' )
+        {
+            std::cout << __FUNC__ << ": *ch != ','" << std::endl;
+        }
 #endif
 
-		++ch;
-		last_token = ch;
-	}
+        ++ch;
+        last_token = ch;
+    }
 }
 
 template<typename T>
 void readTypeOfStringList( const std::string& str, std::vector<shared_ptr<T> >& target_vec )
 {
-	char* ch = (char*)str.c_str();
-	readTypeOfStringList( ch, target_vec );
+    char* ch = (char*)str.c_str();
+    readTypeOfStringList( ch, target_vec );
 }
 
 template<typename T>
 void readEntityReference( const std::string& str, shared_ptr<T>& target, const std::map<int,shared_ptr<BuildingEntity> >& mapEntities, std::stringstream& errorStream )
 {
-	if( str.length() == 0)
-	{
-		return;
-	}
-	if( str.at(0) == '#' )
-	{
-		int tag = std::stoi( str.substr( 1 ) );
-		std::map<int,shared_ptr<BuildingEntity> >::const_iterator it_entity = mapEntities.find( tag );
-		if( it_entity != mapEntities.end() )
-		{
-			shared_ptr<BuildingEntity> found_obj = it_entity->second;
-			target = dynamic_pointer_cast<T>(found_obj);
-		}
-		else
-		{
-			errorStream << "object with id " << tag << " not found" << std::endl;
-		}
-	}
-	else if( str.compare("$")==0 )
-	{
-		
-	}
-	else if( str.compare("*")==0 )
-	{
+    if( str.length() == 0)
+    {
+        return;
+    }
+    if( str.at(0) == '#' )
+    {
+        int tag = std::stoi( str.substr( 1 ) );
+        std::map<int,shared_ptr<BuildingEntity> >::const_iterator it_entity = mapEntities.find( tag );
+        if( it_entity != mapEntities.end() )
+        {
+            shared_ptr<BuildingEntity> found_obj = it_entity->second;
+            target = dynamic_pointer_cast<T>(found_obj);
+        }
+        else
+        {
+            errorStream << "object with id " << tag << " not found" << std::endl;
+        }
+    }
+    else if( str.compare("$")==0 )
+    {
 
-	}
-	else
-	{
-		errorStream << __FUNC__ << ": unexpected argument" << std::endl;
-	}
+    }
+    else if( str.compare("*")==0 )
+    {
+
+    }
+    else
+    {
+        errorStream << __FUNC__ << ": unexpected argument" << std::endl;
+    }
 }
 
 template<typename T>
 void readTypeList( const std::string arg_complete, std::vector<shared_ptr<T> >& vec, const std::map<int,shared_ptr<BuildingEntity> >& mapEntities )
 {
-	// example: (IFCPARAMETERVALUE(0.5),*,IFCPARAMETERVALUE(2.0))
-	char* pos_opening = nullptr;
-	char* pos_closing = nullptr;
-	char* ch = (char*)arg_complete.c_str();
-	findLeadingTrailingParanthesis( ch, pos_opening, pos_closing );
-	if( pos_opening == nullptr || pos_closing == nullptr )
-	{
-		if( arg_complete.compare("$") == 0 )
-		{
-			// empty list
-			return;
-		}
-		std::stringstream err;
-		err << "num_opening != num_closing : " << arg_complete.c_str() << std::endl;
-		throw BuildingException( err.str(), __FUNC__ );
-	}
-	std::string arg( pos_opening+1, pos_closing-pos_opening-1 );
-	std::vector<std::string> list_items;
-	tokenizeList( arg, list_items );
+    // example: (IFCPARAMETERVALUE(0.5),*,IFCPARAMETERVALUE(2.0))
+    char* pos_opening = nullptr;
+    char* pos_closing = nullptr;
+    char* ch = (char*)arg_complete.c_str();
+    findLeadingTrailingParanthesis( ch, pos_opening, pos_closing );
+    if( pos_opening == nullptr || pos_closing == nullptr )
+    {
+        if( arg_complete.compare("$") == 0 )
+        {
+            // empty list
+            return;
+        }
+        std::stringstream err;
+        err << "num_opening != num_closing : " << arg_complete.c_str() << std::endl;
+        throw BuildingException( err.str(), __FUNC__ );
+    }
+    std::string arg( pos_opening+1, pos_closing-pos_opening-1 );
+    std::vector<std::string> list_items;
+    tokenizeList( arg, list_items );
 
-	for( size_t i=0; i<list_items.size(); ++i )
-	{
-		std::string& item = list_items[i];
-		shared_ptr<T> type_obj = T::createObjectFromSTEP( item, mapEntities );
-		if( type_obj )
-		{
-			vec.push_back( type_obj );
-		}
-	}
+    for( size_t i=0; i<list_items.size(); ++i )
+    {
+        std::string& item = list_items[i];
+        shared_ptr<T> type_obj = T::createObjectFromSTEP( item, mapEntities );
+        if( type_obj )
+        {
+            vec.push_back( type_obj );
+        }
+    }
 }
 
 template<typename select_t>
 void readSelectType( const std::string& item, shared_ptr<select_t>& result, const std::map<int, shared_ptr<BuildingEntity> >& mapEntities, std::stringstream& errorStream )
 {
-	char* ch = (char*)item.c_str();
-	if( *ch == '#' )
-	{
-		++ch;
-		const int id = std::stoi( ch );
-		auto it_entity = mapEntities.find( id );
-		if( it_entity != mapEntities.end() )
-		{
-			shared_ptr<BuildingEntity> found_obj = it_entity->second;
-			result = dynamic_pointer_cast<select_t>(found_obj);
-		}
-		return;
-	}
-	
-	// could be type like IFCPARAMETERVALUE(90)
-	std::string type_name;
-	std::string inline_arg;
-	tokenizeInlineArgument( item, type_name, inline_arg );
+    char* ch = (char*)item.c_str();
+    if( *ch == '#' )
+    {
+        ++ch;
+        const int id = std::stoi( ch );
+        auto it_entity = mapEntities.find( id );
+        if( it_entity != mapEntities.end() )
+        {
+            shared_ptr<BuildingEntity> found_obj = it_entity->second;
+            result = dynamic_pointer_cast<select_t>(found_obj);
+        }
+        return;
+    }
 
-	if(type_name.size() == 0 )
-	{
-		return;
-	}
+    // could be type like IFCPARAMETERVALUE(90)
+    std::string type_name;
+    std::string inline_arg;
+    tokenizeInlineArgument( item, type_name, inline_arg );
 
-	std::transform(type_name.begin(), type_name.end(), type_name.begin(), [](char c) {return std::toupper(c); });
-	
-	shared_ptr<BuildingObject> type_instance = IFC4X3::TypeFactory::createTypeObject(type_name.c_str(), inline_arg, mapEntities, errorStream );
-	if( type_instance )
-	{
-		result = dynamic_pointer_cast<select_t>(type_instance);
-		return;
-	}
+    if(type_name.size() == 0 )
+    {
+        return;
+    }
 
-	std::stringstream strs;
-	strs << "unhandled select argument: " << item << " in function readSelectType" << std::endl;
-	throw BuildingException( strs.str() );
+    std::transform(type_name.begin(), type_name.end(), type_name.begin(), [](char c) {return std::toupper(c); });
+
+    shared_ptr<BuildingObject> type_instance = IFC4X3::TypeFactory::createTypeObject(type_name.c_str(), inline_arg, mapEntities, errorStream );
+    if( type_instance )
+    {
+        result = dynamic_pointer_cast<select_t>(type_instance);
+        return;
+    }
+
+    errorStream << "unhandled select argument: " << item << " in function readSelectType" << std::endl;
 }
 
 template<typename select_t>
 void readSelectList( const std::string& arg_complete, std::vector<shared_ptr<select_t> >& vec, const std::map<int,shared_ptr<BuildingEntity> >& mapEntities, std::stringstream& errorStream )
 {
-	// example: (#287,#291,#295,#299) or (IfcLabel('label'),'',IfcLengthMeasure(2.0),#299)
-	char* pos_opening = nullptr;
-	char* pos_closing = nullptr;
-	char* ch = (char*)arg_complete.c_str();
-	findLeadingTrailingParanthesis( ch, pos_opening, pos_closing );
-	if( pos_opening == nullptr || pos_closing == nullptr )
-	{
-		if( arg_complete.compare("$") == 0 )
-		{
-			// empty list
-			return;
-		}
-		std::stringstream err;
-		err << "num_opening != num_closing : " << arg_complete.c_str() << std::endl;
-		throw BuildingException( err.str().c_str(), __FUNC__ );
-	}
-	std::string arg( pos_opening+1, pos_closing-pos_opening-1 );
-	std::vector<std::string> list_items;
-	tokenizeList( arg, list_items );
-	
-	std::stringstream err;
-	for( size_t i=0; i<list_items.size(); ++i )
-	{
-		std::string& item = list_items[i];
+    // example: (#287,#291,#295,#299) or (IfcLabel('label'),'',IfcLengthMeasure(2.0),#299)
+    char* pos_opening = nullptr;
+    char* pos_closing = nullptr;
+    char* ch = (char*)arg_complete.c_str();
+    findLeadingTrailingParanthesis( ch, pos_opening, pos_closing );
+    if( pos_opening == nullptr || pos_closing == nullptr )
+    {
+        if( arg_complete.compare("$") == 0 )
+        {
+            // empty list
+            return;
+        }
+        std::stringstream err;
+        err << "num_opening != num_closing : " << arg_complete.c_str() << std::endl;
+        throw BuildingException( err.str().c_str(), __FUNC__ );
+    }
+    std::string arg( pos_opening+1, pos_closing-pos_opening-1 );
+    std::vector<std::string> list_items;
+    tokenizeList( arg, list_items );
 
-		shared_ptr<select_t> select_object;
-		try
-		{
-			readSelectType( item, select_object, mapEntities, errorStream );
-		}
-		catch( BuildingException& e )
-		{
-			err << e.what();
-		}
-		if( select_object )
-		{
-			vec.push_back( select_object );
-		}
-	}
-	if( err.tellp() > 0 )
-	{
-		throw BuildingException( err.str().c_str(), __FUNC__ );
-	}
-	return;
+    for( size_t i=0; i<list_items.size(); ++i )
+    {
+        std::string& item = list_items[i];
+
+        shared_ptr<select_t> select_object;
+        try
+        {
+            readSelectType( item, select_object, mapEntities, errorStream );
+        }
+        catch( BuildingException& e )
+        {
+            errorStream << e.what();
+        }
+        if( select_object )
+        {
+            vec.push_back( select_object );
+        }
+    }
 }
 
 template<typename T>
 void readEntityReferenceList( const char* arg_complete, std::vector<shared_ptr<T> >& vec, const std::map<int,shared_ptr<BuildingEntity> >& mapEntities, std::stringstream& errorStream )
 {
-	// example: (#287,#291,#295,#299)
-	char* pos_opening = nullptr;
-	char* pos_closing = nullptr;
-	char* ch = (char*)arg_complete;
-	findLeadingTrailingParanthesis( ch, pos_opening, pos_closing );
-	if( pos_opening == nullptr || pos_closing == nullptr )
-	{
-		if( arg_complete != nullptr )
-		{
-			if( *arg_complete == '$' )
-			{ 
-				// empty list
-				return;
-			}
-		}
-		errorStream << "num_opening != num_closing " << std::endl;
-		return;
-	}
-	std::string arg( pos_opening+1, pos_closing-pos_opening-1 );
-	std::vector<int> list_items;
-	tokenizeEntityList( arg, list_items );
-	std::vector<int> vec_not_found;
-	std::map<int,shared_ptr<BuildingEntity> >::const_iterator it_entity;
-	for( size_t i=0; i<list_items.size(); ++i )
-	{
-		const int id = list_items[i];
-		it_entity = mapEntities.find( id );
-		if( it_entity != mapEntities.end() )
-		{
-			shared_ptr<BuildingEntity> found_obj = it_entity->second;
-			vec.push_back( dynamic_pointer_cast<T>(found_obj) );
-		}
-		else
-		{
-			vec_not_found.push_back( id );
-		}
-	}
+    // example: (#287,#291,#295,#299)
+    char* pos_opening = nullptr;
+    char* pos_closing = nullptr;
+    char* ch = (char*)arg_complete;
+    findLeadingTrailingParanthesis( ch, pos_opening, pos_closing );
+    if( pos_opening == nullptr || pos_closing == nullptr )
+    {
+        if( arg_complete != nullptr )
+        {
+            if( *arg_complete == '$' )
+            {
+                // empty list
+                return;
+            }
+        }
+        errorStream << "num_opening != num_closing " << std::endl;
+        return;
+    }
+    std::string arg( pos_opening+1, pos_closing-pos_opening-1 );
+    std::vector<int> list_items;
+    tokenizeEntityList( arg, list_items );
+    std::vector<int> vec_not_found;
+    std::map<int,shared_ptr<BuildingEntity> >::const_iterator it_entity;
+    for( size_t i=0; i<list_items.size(); ++i )
+    {
+        const int id = list_items[i];
+        it_entity = mapEntities.find( id );
+        if( it_entity != mapEntities.end() )
+        {
+            shared_ptr<BuildingEntity> found_obj = it_entity->second;
+            vec.push_back( dynamic_pointer_cast<T>(found_obj) );
+        }
+        else
+        {
+            vec_not_found.push_back( id );
+        }
+    }
 
-	// in case there are unresolved references
-	if( vec_not_found.size() > 0 )
-	{
-		errorStream << "object with id ";
-		
-		for( size_t i=0; i<vec_not_found.size(); ++i )
-		{
-			errorStream	<< vec_not_found[i];
-			if( i <vec_not_found.size()-1 )
-			{
-				errorStream << ", ";
-			}
-		}
+    // in case there are unresolved references
+    if( vec_not_found.size() > 0 )
+    {
+        errorStream << "object with id ";
 
-		errorStream << "  not found" << std::endl;
-	}
+        for( size_t i=0; i<vec_not_found.size(); ++i )
+        {
+            errorStream	<< vec_not_found[i];
+            if( i <vec_not_found.size()-1 )
+            {
+                errorStream << ", ";
+            }
+        }
+
+        errorStream << "  not found" << std::endl;
+    }
 }
 
 template<typename T>
 void readEntityReferenceList( const std::string& str, std::vector<shared_ptr<T> >& vec, const std::map<int,shared_ptr<BuildingEntity> >& mapEntities, std::stringstream& errorStream )
 {
-	// example: (#287,#291,#295,#299)
-	char* ch = (char*)str.c_str();
-	readEntityReferenceList( ch, vec, mapEntities, errorStream );
+    // example: (#287,#291,#295,#299)
+    char* ch = (char*)str.c_str();
+    readEntityReferenceList( ch, vec, mapEntities, errorStream );
 }
 
 template<typename T>
 void readEntityReferenceList2D( const std::string& str, std::vector<std::vector<shared_ptr<T> > >& vec, const std::map<int,shared_ptr<BuildingEntity> >& mapEntities, std::stringstream& errorStream)
 {
-	// example: ((#287,#291,#295,#299),(#287,#291,#295,#299))
-	char* ch = (char*)str.c_str();
+    // example: ((#287,#291,#295,#299),(#287,#291,#295,#299))
+    char* ch = (char*)str.c_str();
 
-	const size_t argsize = str.size();
-	if( argsize == 0 )
-	{
-		return;
-	}
-	
-	char* last_token = ch;
-	int num_par_open = 0;
-	while( *ch != '\0' )
-	{
-		if( *ch == ')' )
-		{
-			--num_par_open;
-			if( num_par_open == 0 )
-			{
-				// last list
-				vec.resize(vec.size()+1);
-				readEntityReferenceList( std::string( last_token, ch-last_token ), vec.back(), mapEntities, errorStream );
-				return;
-			}
-		}
-		else if( *ch == '(' )
-		{
-			++num_par_open;
-			if( num_par_open == 1 )
-			{
-				last_token = ch+1;
-			}
-		}
-		else if( *ch == ',' )
-		{
-			if( num_par_open == 1 )
-			{
-				vec.resize(vec.size()+1);
-				readEntityReferenceList( std::string( last_token, ch-last_token ), vec.back(), mapEntities, errorStream );
-				last_token = ch+1;
-			}
-		}
-		++ch;
-	}
-	// no closing parenthesis found
-	std::stringstream err;
-	err << "no closing parenthesis found: " << str << std::endl;
-	throw BuildingException( err.str(), __FUNC__ );
+    const size_t argsize = str.size();
+    if( argsize == 0 )
+    {
+        return;
+    }
+
+    char* last_token = ch;
+    int num_par_open = 0;
+    while( *ch != '\0' )
+    {
+        if( *ch == ')' )
+        {
+            --num_par_open;
+            if( num_par_open == 0 )
+            {
+                // last list
+                vec.resize(vec.size()+1);
+                readEntityReferenceList( std::string( last_token, ch-last_token ), vec.back(), mapEntities, errorStream );
+                return;
+            }
+        }
+        else if( *ch == '(' )
+        {
+            ++num_par_open;
+            if( num_par_open == 1 )
+            {
+                last_token = ch+1;
+            }
+        }
+        else if( *ch == ',' )
+        {
+            if( num_par_open == 1 )
+            {
+                vec.resize(vec.size()+1);
+                readEntityReferenceList( std::string( last_token, ch-last_token ), vec.back(), mapEntities, errorStream );
+                last_token = ch+1;
+            }
+        }
+        ++ch;
+    }
+    // no closing parenthesis found
+    std::stringstream err;
+    err << "no closing parenthesis found: " << str << std::endl;
+    throw BuildingException( err.str(), __FUNC__ );
 }
 
 template<typename T>
 void readEntityReferenceList3D( const std::string& str, std::vector<std::vector<std::vector<shared_ptr<T> > > >& vec, const std::map<int,shared_ptr<BuildingEntity> >& mapEntities, std::stringstream& errorStream )
 {
-	// example: (((#287,#291,#295,#299),(#287,#291,#295,#299)),((#287,#291,#295,#299),(#287,#291,#295,#299)))
-	const size_t argsize = str.size();
-	if( argsize < 8 )
-	{
-		return;
-	}
-	
-	int num_par_open = 0;
-	char* ch = (char*)str.c_str();
-	char* last_token = ch;
+    // example: (((#287,#291,#295,#299),(#287,#291,#295,#299)),((#287,#291,#295,#299),(#287,#291,#295,#299)))
+    const size_t argsize = str.size();
+    if( argsize < 8 )
+    {
+        return;
+    }
 
-	while( *ch != '\0' )
-	{
-		if( *ch == ')' )
-		{
-			--num_par_open;
-			if( num_par_open == 0 )
-			{
-				// last list
-				vec.resize(vec.size()+1);
-				std::string inner_argument( last_token, ch-last_token );
-				readEntityReferenceList2D( inner_argument, vec.back(), mapEntities, errorStream );
-				return;
-			}
-		}
-		else if( *ch == '(' )
-		{
-			++num_par_open;
-			if( num_par_open == 1 )
-			{
-				last_token = ch+1;
-			}
-		}
-		else if( *ch == ',' )
-		{
-			if( num_par_open == 1 )
-			{
-				vec.resize(vec.size()+1);
-				std::string inner_argument( last_token, ch-last_token );
-				readEntityReferenceList2D( inner_argument, vec.back(), mapEntities, errorStream );
-				last_token = ch+1;
-			}
-		}
-		++ch;
-	}
-	// no closing parenthesis found
-	std::stringstream err;
-	err << "no closing parenthesis found: " << str << std::endl;
-	throw BuildingException( err.str(), __FUNC__ );
+    int num_par_open = 0;
+    char* ch = (char*)str.c_str();
+    char* last_token = ch;
+
+    while( *ch != '\0' )
+    {
+        if( *ch == ')' )
+        {
+            --num_par_open;
+            if( num_par_open == 0 )
+            {
+                // last list
+                vec.resize(vec.size()+1);
+                std::string inner_argument( last_token, ch-last_token );
+                readEntityReferenceList2D( inner_argument, vec.back(), mapEntities, errorStream );
+                return;
+            }
+        }
+        else if( *ch == '(' )
+        {
+            ++num_par_open;
+            if( num_par_open == 1 )
+            {
+                last_token = ch+1;
+            }
+        }
+        else if( *ch == ',' )
+        {
+            if( num_par_open == 1 )
+            {
+                vec.resize(vec.size()+1);
+                std::string inner_argument( last_token, ch-last_token );
+                readEntityReferenceList2D( inner_argument, vec.back(), mapEntities, errorStream );
+                last_token = ch+1;
+            }
+        }
+        ++ch;
+    }
+    // no closing parenthesis found
+    std::stringstream err;
+    err << "no closing parenthesis found: " << str << std::endl;
+    throw BuildingException( err.str(), __FUNC__ );
 }

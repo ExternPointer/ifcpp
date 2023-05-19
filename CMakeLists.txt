@@ -9,7 +9,6 @@ add_definitions( -D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS )
 add_definitions( -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS )
 
 file( GLOB_RECURSE IFC_HEADERS include/ifcpp/Ifc *.h )
-file( GLOB_RECURSE IFC_SOURCES src/Ifc *.cpp )
 
 set( SOURCES
         src/Model/BuildingGuid.cpp
@@ -19,7 +18,8 @@ set( SOURCES
         src/Reader/ReaderUtil.cpp
         src/Writer/WriterSTEP.cpp
         src/Writer/WriterUtil.cpp
-        ${IFC_SOURCES} )
+        src/Ifc/Factories/TypeFactory.cpp
+        src/Ifc/Factories/EntityFactory.cpp )
 
 set( HEADERS
         include/ifcpp/Geometry/Matrix.h
@@ -50,6 +50,7 @@ set( HEADERS
         include/ifcpp/Geometry/StyleConverter.h
         include/ifcpp/Geometry/Style.h
         include/ifcpp/Geometry/VisualObject.h
+        include/ifcpp/ModelLoader.h
         ${IFC_HEADERS} )
 
 

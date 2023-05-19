@@ -8,9 +8,21 @@
 namespace ifcpp {
 
 template<CAdapter TAdapter>
-std::vector<typename TAdapter::TEntity> LoadModel( const std::string& filePath, const std::shared_ptr<Parameters>& parameters ) {
+std::vector<typename TAdapter::TEntity> LoadModel( const std::string& filePath, const std::shared_ptr<Parameters>& parameters, const std::function<void(double)>& onProgressChanged ) {
+
+    auto readerMessageCallback = [onProgressChanged]( const std::shared_ptr<StatusCallback::Message>& message ) {
+        if( message->m_type == StatusCallback::PROGRESS_CHANGED ) {
+            onProgressChanged( message->m_progress * 0.5 );
+        }
+    };
+
+    auto geometryGeneratorProgressChangedCallback = [onProgressChanged]( double progress ) {
+        onProgressChanged( 0.5 + progress * 0.5 );
+    };
+
     auto ifcModel = std::make_shared<BuildingModel>();
     auto reader = std::make_shared<ReaderSTEP>();
+    reader->SetMessageCallBack( readerMessageCallback );
     reader->loadModelFromFile( filePath, ifcModel );
     auto adapter = std::make_shared<TAdapter>();
     auto styleConverter = std::make_shared<ifcpp::StyleConverter>();
@@ -28,7 +40,7 @@ std::vector<typename TAdapter::TEntity> LoadModel( const std::string& filePath, 
         std::make_shared<ifcpp::GeometryGenerator<TAdapter>>( ifcModel, adapter, curveConverter, extruder, geometryConverter, geomUtils, primitivesConverter,
                                                               profileConverter, solidConverter, splineConverter, styleConverter, parameters );
 
-    return geometryGenerator->GenerateGeometry();
+    return geometryGenerator->GenerateGeometry( geometryGeneratorProgressChangedCallback );
 }
 
 }

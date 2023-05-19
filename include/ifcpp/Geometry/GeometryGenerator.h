@@ -3,6 +3,8 @@
 #include <map>
 #include <memory>
 #include <vector>
+#include <functional>
+#include <atomic>
 
 #include "ifcpp/Geometry/CAdapter.h"
 #include "ifcpp/Geometry/CurveConverter.h"
@@ -109,7 +111,7 @@ public:
         this->m_parameters->m_angleFactor = ifcModel->getUnitConverter()->getAngleInRadiantFactor();
     }
 
-    std::vector<TEntity> GenerateGeometry() {
+    std::vector<TEntity> GenerateGeometry( const std::function<void(double)>& onProgressChanged ) {
         this->ResetCaches();
         std::vector<TEntity> entities;
 
@@ -122,16 +124,24 @@ public:
         const auto ifcEntitiesPtr = &ifcEntities;
         const auto ifcEntitiesCount = ifcEntities.size();
         const auto entitiesPtr = &entities;
+        std::atomic<size_t> processedCount = 0;
 
 #ifdef ENABLE_OPENMP
         Mutex entitiesPtrMutex;
-#pragma omp parallel default( none ) shared( entitiesPtrMutex, ifcEntitiesCount, ifcEntitiesPtr, entitiesPtr )
+#pragma omp parallel default( none ) shared( entitiesPtrMutex, ifcEntitiesCount, ifcEntitiesPtr, entitiesPtr, onProgressChanged, processedCount )
         {
             std::vector<TEntity> entitiesPerThread;
             entitiesPerThread.reserve( 1000 );
 #pragma omp for schedule( dynamic, 1000 )
 #endif
             for( int i = 0; i < ifcEntitiesCount; i++ ) {
+                if( !(++processedCount % 100000) ) {
+                    auto progress = (double)processedCount / (double)ifcEntitiesCount;
+                    if( progress < 1 ) {
+                        onProgressChanged( (double)processedCount / (double)ifcEntitiesCount );
+                    }
+                }
+
                 const auto object = std::dynamic_pointer_cast<IfcObjectDefinition>( ifcEntitiesPtr->at( i ) );
                 if( !object ) {
                     continue;
@@ -156,6 +166,7 @@ public:
             }
         }
 #endif
+        onProgressChanged( 1 );
         return entities;
     }
 

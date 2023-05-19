@@ -50,6 +50,7 @@ set( HEADERS
         include/ifcpp/Geometry/StyleConverter.h
         include/ifcpp/Geometry/Style.h
         include/ifcpp/Geometry/VisualObject.h
+        include/ifcpp/ModelLoader.h
         ${IFC_HEADERS} )
 
 

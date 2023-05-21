@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 #include "ifcpp/Geometry/CAdapter.h"
 #include "ifcpp/Model/BuildingModel.h"
 #include "ifcpp/Reader/ReaderSTEP.h"
@@ -8,22 +10,29 @@
 namespace ifcpp {
 
 template<CAdapter TAdapter>
-std::vector<typename TAdapter::TEntity> LoadModel( const std::string& filePath, const std::shared_ptr<Parameters>& parameters, const std::function<void(double)>& onProgressChanged ) {
+std::vector<typename TAdapter::TEntity> LoadModel( const std::string& filePath, const std::shared_ptr<Parameters>& parameters,
+                                                   const std::function<void( double )>& onProgressChanged, const std::atomic<bool>& isCancellationRequest = false ) {
 
-    auto readerMessageCallback = [onProgressChanged]( const std::shared_ptr<StatusCallback::Message>& message ) {
+    auto readerMessageCallback = [ onProgressChanged ]( const std::shared_ptr<StatusCallback::Message>& message ) {
         if( message->m_type == StatusCallback::PROGRESS_CHANGED ) {
             onProgressChanged( message->m_progress * 0.5 );
         }
     };
 
-    auto geometryGeneratorProgressChangedCallback = [onProgressChanged]( double progress ) {
-        onProgressChanged( 0.5 + progress * 0.5 );
+    auto readerIsCancellationRequested = [ &isCancellationRequest ] () {
+        return (bool)isCancellationRequest;
     };
+
+    auto geometryGeneratorProgressChangedCallback = [ onProgressChanged ]( double progress ) { onProgressChanged( 0.5 + progress * 0.5 ); };
 
     auto ifcModel = std::make_shared<BuildingModel>();
     auto reader = std::make_shared<ReaderSTEP>();
     reader->SetMessageCallBack( readerMessageCallback );
+    reader->SetIsCancellationRequestedMethod( readerIsCancellationRequested );
     reader->loadModelFromFile( filePath, ifcModel );
+    if( isCancellationRequest ) {
+        return {};
+    }
     auto adapter = std::make_shared<TAdapter>();
     auto styleConverter = std::make_shared<ifcpp::StyleConverter>();
     auto geomUtils = std::make_shared<ifcpp::GeomUtils<typename TAdapter::TVector>>( parameters );
@@ -40,7 +49,7 @@ std::vector<typename TAdapter::TEntity> LoadModel( const std::string& filePath, 
         std::make_shared<ifcpp::GeometryGenerator<TAdapter>>( ifcModel, adapter, curveConverter, extruder, geometryConverter, geomUtils, primitivesConverter,
                                                               profileConverter, solidConverter, splineConverter, styleConverter, parameters );
 
-    return geometryGenerator->GenerateGeometry( geometryGeneratorProgressChangedCallback );
+    return geometryGenerator->GenerateGeometry( geometryGeneratorProgressChangedCallback, isCancellationRequest );
 }
 
 }

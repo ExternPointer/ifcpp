@@ -26,7 +26,7 @@ class AttributeObjectVector : public BuildingObject
 {
 public:
 	AttributeObjectVector() = default;
-	AttributeObjectVector( std::vector<shared_ptr<BuildingObject> >& vec ){ m_vec = vec; }
+	AttributeObjectVector( const std::vector<shared_ptr<BuildingObject> >& vec ) : m_vec( vec ) {}
 	virtual ~AttributeObjectVector()= default;
 	uint32_t classID() const override { return 3667068888; }
 	void getStepParameter( std::stringstream& /*stream*/, bool /*is_select_type = false*/ ) const override {}

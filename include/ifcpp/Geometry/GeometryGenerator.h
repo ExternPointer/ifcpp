@@ -111,7 +111,7 @@ public:
         this->m_parameters->m_angleFactor = ifcModel->getUnitConverter()->getAngleInRadiantFactor();
     }
 
-    std::vector<TEntity> GenerateGeometry( const std::function<void(double)>& onProgressChanged ) {
+    std::vector<TEntity> GenerateGeometry( const std::function<void(double)>& onProgressChanged, const std::atomic<bool>& isCancellationRequested = false ) {
         this->ResetCaches();
         std::vector<TEntity> entities;
 
@@ -128,13 +128,22 @@ public:
 
 #ifdef ENABLE_OPENMP
         Mutex entitiesPtrMutex;
-#pragma omp parallel default( none ) shared( entitiesPtrMutex, ifcEntitiesCount, ifcEntitiesPtr, entitiesPtr, onProgressChanged, processedCount )
+#pragma omp parallel default( none ) shared( entitiesPtrMutex, ifcEntitiesCount, ifcEntitiesPtr, entitiesPtr, onProgressChanged, processedCount, isCancellationRequested )
         {
             std::vector<TEntity> entitiesPerThread;
             entitiesPerThread.reserve( 1000 );
 #pragma omp for schedule( dynamic, 1000 )
 #endif
             for( int i = 0; i < ifcEntitiesCount; i++ ) {
+#ifdef ENABLE_OPENMP
+                if( isCancellationRequested ) {
+                    continue;
+                }
+#else
+            if( isCancellationRequested ) {
+                return {};
+            }
+#endif
                 if( !(++processedCount % 100000) ) {
                     auto progress = (double)processedCount / (double)ifcEntitiesCount;
                     if( progress < 1 ) {
@@ -166,6 +175,9 @@ public:
             }
         }
 #endif
+        if( isCancellationRequested ) {
+            return {};
+        }
         onProgressChanged( 1 );
         return entities;
     }

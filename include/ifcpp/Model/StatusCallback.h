@@ -109,5 +109,5 @@ public:
 protected:
     std::function<void( const shared_ptr<Message>& )> m_messageCallback;
     std::function<bool()> m_isCancellationRequested;
-    StatusCallback* m_redirectTarget;
+    StatusCallback* m_redirectTarget = nullptr;
 };

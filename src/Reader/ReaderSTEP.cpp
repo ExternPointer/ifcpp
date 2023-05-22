@@ -189,7 +189,7 @@ void ReaderSTEP::loadModelFromStream(std::istream& content, std::streampos file_
     int millisecs_end = clock();
     double seconds = (millisecs_end - millisecs_begin) * 0.001;
     double progress = 1.0;
-    progressValueCallback( progress, "parse" );
+    SendProgressChanged( progress, "parse" );
 }
 
 void ReaderSTEP::readHeader( std::istream& content, shared_ptr<BuildingModel>& target_model )
@@ -529,35 +529,37 @@ void ReaderSTEP::readEntityArguments( std::vector<std::pair<std::string, shared_
     // second pass, now read arguments
     // every object can be initialized independently in parallel
     const int num_objects = static_cast<int>(vec_entities.size());
+    std::atomic<int> processedCount = 0;
     std::stringstream err;
     std::string ifc_version = model->getIfcSchemaVersionOfLoadedFile();
 
     // set progress
-    double progress = 0.3;
-    progressValueCallback( progress, "parse" );
-    double last_progress = 0.3;
+    SendProgressChanged( 0.3, "parse" );
     const std::map<int,shared_ptr<BuildingEntity> >* map_entities_ptr = &map_entities;
     std::vector<std::pair<std::string, shared_ptr<BuildingEntity> > >* vec_entities_ptr = &vec_entities;
-    bool canceled = this->IsCancellationRequested();
 
 #ifdef _DEBUG
     std::set<std::string> setClassesWithAdjustedArguments;
 #endif
 
 #ifdef _OPENMP
-#pragma omp parallel firstprivate(num_objects) shared(map_entities_ptr,vec_entities_ptr)
+#pragma omp parallel default( none ) shared(map_entities_ptr,vec_entities_ptr, num_objects, err, processedCount )
 #endif
     {
         const std::map<int,shared_ptr<BuildingEntity> > &map_entities_ptr_local = *map_entities_ptr;
 
 #ifdef _OPENMP
-#pragma omp for schedule(dynamic, 100)
+#pragma omp for schedule(dynamic, 1000) nowait
 #endif
         for( int i=0; i<num_objects; ++i )
         {
-            if ( canceled )
+            if ( this->IsCancellationRequested() )
             {
+#ifdef _OPENMP
                 continue;
+#else
+                return;
+#endif
             }
 
             std::pair<std::string, shared_ptr<BuildingEntity> >& entity_read_object = (*vec_entities_ptr)[i];
@@ -644,94 +646,6 @@ void ReaderSTEP::readEntityArguments( std::vector<std::pair<std::string, shared_
             try
             {
                 entity->readStepArguments(arguments_decoded, map_entities_ptr_local, errorStream);
-
-                if( entity->classID() == IFCSTYLEDITEM )
-                {
-                    int tag = entity->m_tag;
-                    shared_ptr<IfcStyledItem> styledItem = dynamic_pointer_cast<IfcStyledItem>(entity);
-                    if( styledItem )
-                    {
-                        std::vector<shared_ptr<IfcPresentationStyle> >			vec_presentationStylesReplaced;
-                        for( shared_ptr<IfcPresentationStyle>& presentationStyle : styledItem->m_Styles )
-                        {
-                            if( !presentationStyle )
-                            {
-                                continue;
-                            }
-
-                            shared_ptr<IfcPresentationStyleAssignment> presentationStyleAssignment = dynamic_pointer_cast<IfcPresentationStyleAssignment>(presentationStyle);
-                            if( presentationStyleAssignment )
-                            {
-                                // IFCPRESENTATIONSTYLEASSIGNMENT has been removed in IFC4X3
-                                // old:    IfcRepresentationItem  <- IFCSTYLEDITEM ->  IFCPRESENTATIONSTYLEASSIGNMENT -> IFCSURFACESTYLE
-                                // new      IfcRepresentationItem  <- IFCSTYLEDITEM ->     [x]   ->      IFCSURFACESTYLE
-
-                                for( shared_ptr<IfcPresentationStyle>& presentationStyle : presentationStyleAssignment->m_Styles )
-                                {
-                                    if( !presentationStyle )
-                                    {
-                                        continue;
-                                    }
-
-                                    //ENTITY IfcPresentationStyle ABSTRACT SUPERTYPE OF (ONEOF (IfcCurveStyle ,IfcFillAreaStyle ,IfcSurfaceStyle ,IfcTextStyle));
-
-                                    shared_ptr<IfcSurfaceStyle> surfaceStyle = dynamic_pointer_cast<IfcSurfaceStyle>(presentationStyle);
-                                    if( surfaceStyle )
-                                    {
-                                        vec_presentationStylesReplaced.push_back(surfaceStyle);
-                                        continue;
-                                    }
-
-                                    shared_ptr<IfcCurveStyle> curveStyle = dynamic_pointer_cast<IfcCurveStyle>(presentationStyle);
-                                    if( curveStyle )
-                                    {
-                                        vec_presentationStylesReplaced.push_back(curveStyle);
-                                        continue;
-                                    }
-
-                                    shared_ptr<IfcFillAreaStyle> fillAreaStyle = dynamic_pointer_cast<IfcFillAreaStyle>(presentationStyle);
-                                    if( fillAreaStyle )
-                                    {
-                                        vec_presentationStylesReplaced.push_back(fillAreaStyle);
-                                        continue;
-                                    }
-
-                                    shared_ptr<IfcTextStyle> textStyle = dynamic_pointer_cast<IfcTextStyle>(presentationStyle);
-                                    if( textStyle )
-                                    {
-                                        vec_presentationStylesReplaced.push_back(textStyle);
-                                        continue;
-                                    }
-                                }
-                                continue;
-                            }
-
-                            vec_presentationStylesReplaced.push_back(presentationStyle);
-                        }
-
-                        styledItem->m_Styles = vec_presentationStylesReplaced;
-                    }
-                }
-
-                // prepare an estimation of mesh size
-                shared_ptr<IfcProduct> elementAsProduct = dynamic_pointer_cast<IfcProduct>(entity);
-                if( elementAsProduct )
-                {
-                    shared_ptr<IfcProductRepresentation> productRepresentation = elementAsProduct->m_Representation;
-                    if( productRepresentation )
-                    {
-                        for( const shared_ptr<IfcRepresentation>& representation : productRepresentation->m_Representations )
-                        {
-                            for( const shared_ptr<IfcRepresentationItem>& representation_item : representation->m_Items )
-                            {
-                                if( representation_item->classID() != IFC4X3::IFCBOUNDINGBOX )
-                                {
-                                    ++model->m_num_geometric_items;
-                                }
-                            }
-                        }
-                    }
-                }
             }
             catch( std::exception& e )
             {
@@ -763,32 +677,83 @@ void ReaderSTEP::readEntityArguments( std::vector<std::pair<std::string, shared_
                 err << errorStream.str();
             }
 
-            if( i%10 == 0 )
+            if( !(++processedCount % 10000) )
             {
-                progress = 0.3 + 0.6*double(i)/double(num_objects);
-                if( progress - last_progress > 0.03 )
-                {
-#ifdef _OPENMP
-                    if( omp_get_thread_num() == 0 )
-#endif
-                    {
-                        progressValueCallback( progress, "parse" );
-                        last_progress = progress;
-
-                        if ( this->IsCancellationRequested() )
-                        {
-#ifdef _OPENMP
-                            canceled = true;
-#pragma omp flush(canceled)
-#else
-                            break; // If we're not using OpenMP, we can safely break the loop
-#endif
-                        }
-                    }
-                }
+                SendProgressChanged( 0.3 + 0.6*double(processedCount)/double(num_objects), "parse" );
             }
         }
     }   // implicic barrier
+
+    for( auto& idToEntityPair: map_entities ) {
+        auto entity = idToEntityPair.second;
+        if( entity->classID() == IFCSTYLEDITEM )
+        {
+            int tag = entity->m_tag;
+            shared_ptr<IfcStyledItem> styledItem = dynamic_pointer_cast<IfcStyledItem>(entity);
+            if( styledItem )
+            {
+                std::vector<shared_ptr<IfcPresentationStyle> >			vec_presentationStylesReplaced;
+                for( shared_ptr<IfcPresentationStyle>& presentationStyle : styledItem->m_Styles )
+                {
+                    if( !presentationStyle )
+                    {
+                        continue;
+                    }
+
+                    shared_ptr<IfcPresentationStyleAssignment> presentationStyleAssignment = dynamic_pointer_cast<IfcPresentationStyleAssignment>(presentationStyle);
+                    if( presentationStyleAssignment )
+                    {
+                        // IFCPRESENTATIONSTYLEASSIGNMENT has been removed in IFC4X3
+                        // old:    IfcRepresentationItem  <- IFCSTYLEDITEM ->  IFCPRESENTATIONSTYLEASSIGNMENT -> IFCSURFACESTYLE
+                        // new      IfcRepresentationItem  <- IFCSTYLEDITEM ->     [x]   ->      IFCSURFACESTYLE
+
+                        for( shared_ptr<IfcPresentationStyle>& presentationStyle : presentationStyleAssignment->m_Styles )
+                        {
+                            if( !presentationStyle )
+                            {
+                                continue;
+                            }
+
+                            //ENTITY IfcPresentationStyle ABSTRACT SUPERTYPE OF (ONEOF (IfcCurveStyle ,IfcFillAreaStyle ,IfcSurfaceStyle ,IfcTextStyle));
+
+                            shared_ptr<IfcSurfaceStyle> surfaceStyle = dynamic_pointer_cast<IfcSurfaceStyle>(presentationStyle);
+                            if( surfaceStyle )
+                            {
+                                vec_presentationStylesReplaced.push_back(surfaceStyle);
+                                continue;
+                            }
+
+                            shared_ptr<IfcCurveStyle> curveStyle = dynamic_pointer_cast<IfcCurveStyle>(presentationStyle);
+                            if( curveStyle )
+                            {
+                                vec_presentationStylesReplaced.push_back(curveStyle);
+                                continue;
+                            }
+
+                            shared_ptr<IfcFillAreaStyle> fillAreaStyle = dynamic_pointer_cast<IfcFillAreaStyle>(presentationStyle);
+                            if( fillAreaStyle )
+                            {
+                                vec_presentationStylesReplaced.push_back(fillAreaStyle);
+                                continue;
+                            }
+
+                            shared_ptr<IfcTextStyle> textStyle = dynamic_pointer_cast<IfcTextStyle>(presentationStyle);
+                            if( textStyle )
+                            {
+                                vec_presentationStylesReplaced.push_back(textStyle);
+                                continue;
+                            }
+                        }
+                        continue;
+                    }
+
+                    vec_presentationStylesReplaced.push_back( presentationStyle );
+                }
+
+                styledItem->m_Styles = vec_presentationStylesReplaced;
+            }
+        }
+    }
 
     if( err.tellp() > 0 )
     {
@@ -898,7 +863,7 @@ void ReaderSTEP::readData(	std::istream& read_in, std::streampos file_size, shar
                 if( progress - last_progress > 0.01 )
                 {
                     // TODO read arguments already in parallel thread
-                    progressValueCallback( progress, "parse" );
+                    SendProgressChanged( progress, "parse" );
                     last_progress = progress;
                 }
             }

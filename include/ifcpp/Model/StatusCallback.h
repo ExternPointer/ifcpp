@@ -98,7 +98,7 @@ public:
         this->SendMessage( message );
     }
     
-    void progressValueCallback( double progress, const std::string& progressType ) {
+    void SendProgressChanged( double progress, const std::string& progressType ) {
         auto message = std::make_shared<Message>();
         message->m_type = MessageType::PROGRESS_CHANGED;
         message->m_progress = progress;

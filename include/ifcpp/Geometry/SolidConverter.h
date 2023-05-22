@@ -456,6 +456,9 @@ private:
         const auto polygonal = std::dynamic_pointer_cast<IfcPolygonalBoundedHalfSpace>( halfSpaceSolid );
         if( polygonal ) {
             auto boundaryProfile = this->m_geomUtils->SimplifyLoop( this->m_curveConverter->ConvertCurve( polygonal->m_PolygonalBoundary ) );
+            if( boundaryProfile.size() < 3 ) {
+                return TVisualObject::Create();
+            }
             const auto m = this->m_primitivesConverter->ConvertPlacement( polygonal->m_Position );
             for( auto& p: boundaryProfile ) {
                 p.z = -this->m_parameters->m_modelMaxSize * 0.5;

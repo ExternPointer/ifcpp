@@ -46,8 +46,12 @@ std::vector<typename TAdapter::TEntity> LoadModel( const std::string& filePath, 
     auto solidConverter = std::make_shared<ifcpp::SolidConverter<TAdapter>>( primitivesConverter, curveConverter, profileConverter, extruder, geometryConverter,
                                                                              adapter, geomUtils, styleConverter, parameters );
     auto geometryGenerator =
-        std::make_shared<ifcpp::GeometryGenerator<TAdapter>>( ifcModel, adapter, curveConverter, extruder, geometryConverter, geomUtils, primitivesConverter,
-                                                              profileConverter, solidConverter, splineConverter, styleConverter, parameters );
+        std::shared_ptr<ifcpp::GeometryGenerator<TAdapter>>( new ifcpp::GeometryGenerator<TAdapter>( ifcModel, adapter, curveConverter, extruder, geometryConverter, geomUtils, primitivesConverter,
+                                                              profileConverter, solidConverter, splineConverter, styleConverter, parameters ), [] (ifcpp::GeometryGenerator<TAdapter>* d) {
+                                                                 std::thread( [ d ]() {
+                                                                     delete d;
+                                                                 } ).detach();
+                                                             } );
 
     return geometryGenerator->GenerateGeometry( geometryGeneratorProgressChangedCallback, isCancellationRequest );
 }

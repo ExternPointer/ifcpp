@@ -114,6 +114,7 @@ public:
     std::vector<TEntity> GenerateGeometry( const std::function<void(double)>& onProgressChanged, const std::atomic<bool>& isCancellationRequested = false ) {
         this->ResetCaches();
         std::vector<TEntity> entities;
+        entities.reserve( this->m_ifcModel->getMapIfcEntities().size() );
 
         std::vector<std::shared_ptr<BuildingEntity>> ifcEntities;
         ifcEntities.reserve( this->m_ifcModel->getMapIfcEntities().size() );
@@ -132,7 +133,7 @@ public:
         {
             std::vector<TEntity> entitiesPerThread;
             entitiesPerThread.reserve( 1000 );
-#pragma omp for schedule( dynamic, 1000 )
+#pragma omp for schedule( dynamic, 1000 ) nowait
 #endif
             for( int i = 0; i < ifcEntitiesCount; i++ ) {
 #ifdef ENABLE_OPENMP

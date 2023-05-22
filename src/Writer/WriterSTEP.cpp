@@ -267,7 +267,7 @@ void WriterSTEP::writeModelToStream( std::stringstream& stream, shared_ptr<Build
             double progress = double( i ) / num_objects;
             if( progress - last_progress > 0.03 )
             {
-                progressValueCallback( progress, "write" );
+                SendProgressChanged( progress, "write" );
                 last_progress = progress;
             }
         }

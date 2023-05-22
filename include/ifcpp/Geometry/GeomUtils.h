@@ -123,6 +123,9 @@ public:
         return fabs(AVector::Len( point - a ) - fabs( p )) < this->m_parameters->m_epsilon && l <= p && p <= r;
     }
     std::vector<TVector> SimplifyLoop( std::vector<TVector> loop ) {
+        if( loop.size() < 3 ) {
+            return {};
+        }
         loop.push_back( loop[ 0 ] );
         loop.insert( std::begin( loop ), loop[ loop.size() - 2 ] );
         loop = this->SimplifyCurve( loop );

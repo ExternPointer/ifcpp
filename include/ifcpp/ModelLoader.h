@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <thread>
 
 #include "ifcpp/Geometry/CAdapter.h"
 #include "ifcpp/Model/BuildingModel.h"

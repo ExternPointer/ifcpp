@@ -685,6 +685,9 @@ void ReaderSTEP::readEntityArguments( std::vector<std::pair<std::string, shared_
     }   // implicic barrier
 
     for( auto& idToEntityPair: map_entities ) {
+        if( this->IsCancellationRequested() ) {
+            continue;
+        }
         auto entity = idToEntityPair.second;
         if( entity->classID() == IFCSTYLEDITEM )
         {

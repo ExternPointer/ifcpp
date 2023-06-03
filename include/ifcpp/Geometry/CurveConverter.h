@@ -184,26 +184,29 @@ public:
                 if( pointList3d ) {
                     points = this->m_primitivesConverter->ConvertPoints( pointList3d->m_CoordList );
                 }
-                for( const auto& segment: indexedPolyCurve->m_Segments ) {
-                    const auto lineIdx = dynamic_pointer_cast<IfcLineIndex>( segment );
-                    if( lineIdx && lineIdx->m_vec.size() > 1 && lineIdx->m_vec[ 0 ] && lineIdx->m_vec[ 1 ] ) {
-                        int idx0 = lineIdx->m_vec[ 0 ]->m_value - 1;
-                        int idx1 = lineIdx->m_vec[ 1 ]->m_value - 1;
-                        if( 0 <= idx0 && idx0 < points.size() && 0 <= idx1 && idx1 < points.size() ) {
-                            result.push_back( points[ idx0 ] );
-                            result.push_back( points[ idx1 ] );
+                if( !indexedPolyCurve->m_Segments.empty() ) {
+                    for( const auto& segment: indexedPolyCurve->m_Segments ) {
+                        const auto lineIdx = dynamic_pointer_cast<IfcLineIndex>( segment );
+                        if( lineIdx && lineIdx->m_vec.size() > 1 && lineIdx->m_vec[ 0 ] && lineIdx->m_vec[ 1 ] ) {
+                            for( const auto& idx: lineIdx->m_vec ) {
+                                if( idx && idx->m_value > 0 && idx->m_value <= points.size() ) {
+                                    result.push_back( points[ idx->m_value - 1 ] );
+                                }
+                            }
+                        }
+                        const auto arcIdx = dynamic_pointer_cast<IfcArcIndex>( segment );
+                        if( arcIdx && arcIdx->m_vec.size() > 2 && arcIdx->m_vec[ 0 ] && arcIdx->m_vec[ 1 ] && arcIdx->m_vec[ 2 ] ) {
+                            int idx0 = arcIdx->m_vec[ 0 ]->m_value - 1;
+                            int idx1 = arcIdx->m_vec[ 1 ]->m_value - 1;
+                            int idx2 = arcIdx->m_vec[ 2 ]->m_value - 1;
+                            if( 0 <= idx0 && idx0 < points.size() && 0 <= idx1 && idx1 < points.size() && 0 <= idx2 && idx2 < points.size() ) {
+                                const auto arcPoints = this->m_geomUtils->BuildArc( points[ idx0 ], points[ idx1 ], points[ idx2 ] );
+                                std::copy( std::begin( arcPoints ), std::end( arcPoints ), std::back_inserter( result ) );
+                            }
                         }
                     }
-                    const auto arcIdx = dynamic_pointer_cast<IfcArcIndex>( segment );
-                    if( arcIdx && arcIdx->m_vec.size() > 2 && arcIdx->m_vec[ 0 ] && arcIdx->m_vec[ 1 ] && arcIdx->m_vec[ 2 ] ) {
-                        int idx0 = arcIdx->m_vec[ 0 ]->m_value - 1;
-                        int idx1 = arcIdx->m_vec[ 1 ]->m_value - 1;
-                        int idx2 = arcIdx->m_vec[ 2 ]->m_value - 1;
-                        if( 0 <= idx0 && idx0 < points.size() && 0 <= idx1 && idx1 < points.size() && 0 <= idx2 && idx2 < points.size() ) {
-                            const auto arcPoints = this->m_geomUtils->BuildArc( points[ idx0 ], points[ idx1 ], points[ idx2 ] );
-                            std::copy( std::begin( arcPoints ), std::end( arcPoints ), std::back_inserter( result ) );
-                        }
-                    }
+                } else {
+                    result = std::move( points );
                 }
             }
         }
@@ -252,9 +255,13 @@ public:
         }
 
         const auto offset_curve_3d = dynamic_pointer_cast<IfcOffsetCurve3D>( curve );
-        if( offset_curve_3d ) {
-            // TODO: implement
-            result = {};
+        if( offset_curve_3d && offset_curve_3d->m_RefDirection && offset_curve_3d->m_Distance ) {
+            auto baseCurve = this->ConvertCurve( offset_curve_3d->m_BasisCurve );
+            auto offset = this->m_primitivesConverter->ConvertPoint( offset_curve_3d->m_RefDirection->m_DirectionRatios ) * offset_curve_3d->m_Distance->m_value;
+            for( auto& p: baseCurve ) {
+                p = p + offset;
+            }
+            result = std::move( baseCurve );
         }
 
         const auto pcurve = dynamic_pointer_cast<IfcPcurve>( curve );

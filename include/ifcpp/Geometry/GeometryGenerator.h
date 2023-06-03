@@ -1,10 +1,10 @@
 #pragma once
 
+#include <atomic>
+#include <functional>
 #include <map>
 #include <memory>
 #include <vector>
-#include <functional>
-#include <atomic>
 
 #include "ifcpp/Geometry/CAdapter.h"
 #include "ifcpp/Geometry/CurveConverter.h"
@@ -38,6 +38,7 @@
 #include "ifcpp/Ifc/IfcMappedItem.h"
 #include "ifcpp/Ifc/IfcObjectDefinition.h"
 #include "ifcpp/Ifc/IfcOpenShell.h"
+#include "ifcpp/Ifc/IfcPath.h"
 #include "ifcpp/Ifc/IfcProductRepresentation.h"
 #include "ifcpp/Ifc/IfcRelVoidsElement.h"
 #include "ifcpp/Ifc/IfcRepresentation.h"
@@ -111,7 +112,7 @@ public:
         this->m_parameters->m_angleFactor = ifcModel->getUnitConverter()->getAngleInRadiantFactor();
     }
 
-    std::vector<TEntity> GenerateGeometry( const std::function<void(double)>& onProgressChanged, const std::atomic<bool>& isCancellationRequested = false ) {
+    std::vector<TEntity> GenerateGeometry( const std::function<void( double )>& onProgressChanged, const std::atomic<bool>& isCancellationRequested = false ) {
         this->ResetCaches();
         std::vector<TEntity> entities;
         entities.reserve( this->m_ifcModel->getMapIfcEntities().size() );
@@ -129,7 +130,8 @@ public:
 
 #ifdef ENABLE_OPENMP
         Mutex entitiesPtrMutex;
-#pragma omp parallel default( none ) shared( entitiesPtrMutex, ifcEntitiesCount, ifcEntitiesPtr, entitiesPtr, onProgressChanged, processedCount, isCancellationRequested )
+#pragma omp parallel default( none )                                                                                                                           \
+    shared( entitiesPtrMutex, ifcEntitiesCount, ifcEntitiesPtr, entitiesPtr, onProgressChanged, processedCount, isCancellationRequested )
         {
             std::vector<TEntity> entitiesPerThread;
             entitiesPerThread.reserve( 1000 );
@@ -145,7 +147,7 @@ public:
                 return {};
             }
 #endif
-                if( !(++processedCount % 100000) ) {
+                if( !( ++processedCount % 100000 ) ) {
                     auto progress = (double)processedCount / (double)ifcEntitiesCount;
                     if( progress < 1 ) {
                         onProgressChanged( (double)processedCount / (double)ifcEntitiesCount );
@@ -308,7 +310,10 @@ private:
             visualObjects = this->ConvertMappedItem( mappedItem );
         }
 
-        // FIXME: IfcTopologicalRepresentationItem (maybe)
+        const auto topologicalItem = dynamic_pointer_cast<IfcTopologicalRepresentationItem>( item );
+        if( topologicalItem ) {
+            visualObjects = this->ConvertTopologicalRepresentationItem( topologicalItem );
+        }
 
         const auto styles = this->m_styleConverter->GetStyles( item->m_LayerAssignment_inverse );
         for( auto& vo: visualObjects ) {
@@ -346,6 +351,40 @@ private:
         }
 
         return visualObjects;
+    }
+
+    std::vector<std::shared_ptr<TVisualObject>> ConvertTopologicalRepresentationItem( const std::shared_ptr<IfcTopologicalRepresentationItem>& item ) {
+        // IfcTopologicalRepresentationItem ABSTRACT SUPERTYPE OF(ONEOF(IfcConnectedFaceSet, IfcEdge, IfcFace, IfcFaceBound, IfcLoop, IfcPath, IfcVertex))
+        if( const auto connectedFaceSet = dynamic_pointer_cast<IfcConnectedFaceSet>( item ) ) {
+            auto loops = this->m_geometryConverter->ConvertFaces( connectedFaceSet->m_CfsFaces );
+            return { TVisualObject::Create( { Helpers::CreateMesh( this->m_adapter, loops ) } ) };
+        } else if( const auto edge = dynamic_pointer_cast<IfcEdge>( item ) ) {
+            auto polyline = this->m_geometryConverter->ConvertEdge( edge );
+            return { TVisualObject::Create( {}, { this->m_adapter->CreatePolyline( polyline ) } ) };
+        } else if( const auto face = dynamic_pointer_cast<IfcFace>( item ) ) {
+            auto loop = this->m_geometryConverter->ConvertFace( face );
+            return { TVisualObject::Create( { Helpers::CreateMesh( this->m_adapter, { loop } ) } ) };
+        } else if( const auto faceBound = dynamic_pointer_cast<IfcFaceBound>( item ) ) {
+            auto polyline = this->m_geometryConverter->ConvertLoop( faceBound->m_Bound );
+            if( !polyline.empty() ) {
+                polyline.push_back( polyline[ 0 ] );
+            }
+            return { TVisualObject::Create( {}, { this->m_adapter->CreatePolyline( polyline ) } ) };
+        } else if( const auto loop = dynamic_pointer_cast<IfcLoop>( item ) ) {
+            auto polyline = this->m_geometryConverter->ConvertLoop( loop );
+            if( !polyline.empty() ) {
+                polyline.push_back( polyline[ 0 ] );
+            }
+            return { TVisualObject::Create( {}, { this->m_adapter->CreatePolyline( polyline ) } ) };
+        } else if( const auto path = dynamic_pointer_cast<IfcPath>( item ) ) {
+            return {};
+        } else if( const auto vertex = dynamic_pointer_cast<IfcVertex>( item ) ) {
+            // TODO: Implement
+            return {};
+        } else {
+            // TODO: Log error
+        }
+        return {};
     }
 
     std::vector<TMesh> ConvertRelatedOpening( const std::shared_ptr<IFC4X3::IfcObjectDefinition>& object ) {

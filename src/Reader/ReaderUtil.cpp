@@ -200,12 +200,11 @@ std::istream& bufferedGetStepLine(std::istream& inputStream, std::string& lineOu
             continue;
         }
         case '\'':
-            if( sb->sgetc() != '/' )  // sgetc: character at the current position
-            {
-                inString = !inString;
-            }
+        {
+            inString = !inString;
             lineOut += (char)c;
             continue;
+        }
         case '/':
             if( !inString )
             {

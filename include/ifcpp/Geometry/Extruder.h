@@ -30,13 +30,10 @@ public:
         if( profile.empty() ) {
             return {};
         }
-        // TODO: It is not important to simplify profile heres
         if( asClosed ) {
-            profile = this->m_geomUtils->SimplifyLoop( profile );
             profile.push_back( profile[ 0 ] );
-        } else {
-            profile = this->m_geomUtils->SimplifyCurve( profile );
         }
+
         std::vector<TLoop> result;
 
         // TODO: Rework
@@ -68,12 +65,8 @@ public:
         if( profile.empty() ) {
             return {};
         }
-        // TODO: It is not important to simplify profile here
         if( asClosed ) {
-            profile = this->m_geomUtils->SimplifyLoop( profile );
             profile.push_back( profile[ 0 ] );
-        } else {
-            profile = this->m_geomUtils->SimplifyCurve( profile );
         }
 
         if( sweepPoints.size() < 2 ) {

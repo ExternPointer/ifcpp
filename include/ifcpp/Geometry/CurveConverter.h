@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <cmath>
 
 #include "ifcpp/Model/OpenMPIncludes.h"
 

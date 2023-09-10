@@ -31,16 +31,16 @@ class BuildingEntity;
 class IFCQUERY_EXPORT StatusCallback {
 public:
     enum MessageType {
-        PROGRESS_CHANGED,
-        INFO,
-        WARNING,
-        ERROR,
-        UNKNOWN,
+        ProgressChanged,
+        Info,
+        Warning,
+        Error,
+        Unknown,
     };
 
     class Message {
     public:
-        MessageType m_type = UNKNOWN;
+        MessageType m_type = Unknown;
         std::string m_text;
         const char* m_function = "";
         std::weak_ptr<BuildingEntity> m_entity;
@@ -66,9 +66,9 @@ public:
     }
 
     //\brief trigger the callback to pass a message, warning, or error, for example to store in a logfile
-    void SendMessage( const shared_ptr<Message>& m ) {
+    void SendLogMessage( const shared_ptr<Message>& m ) {
         if( this->m_redirectTarget ) {
-            this->m_redirectTarget->SendMessage( m );
+            this->m_redirectTarget->SendLogMessage( m );
             return;
         }
 
@@ -89,21 +89,21 @@ public:
         return false;
     }
 
-    void SendMessage( const std::string& text, MessageType type, const char* function, const std::weak_ptr<BuildingEntity>& entity = {} ) {
+    void SendLogMessage( const std::string& text, MessageType type, const char* function, const std::weak_ptr<BuildingEntity>& entity = {} ) {
         auto message = std::make_shared<Message>();
         message->m_text = text;
         message->m_type = type;
         message->m_function = function;
         message->m_entity = entity;
-        this->SendMessage( message );
+        this->SendLogMessage( message );
     }
     
     void SendProgressChanged( double progress, const std::string& progressType ) {
         auto message = std::make_shared<Message>();
-        message->m_type = MessageType::PROGRESS_CHANGED;
+        message->m_type = MessageType::ProgressChanged;
         message->m_progress = progress;
         message->m_progressType = progressType;
-        SendMessage( message );
+        SendLogMessage( message );
     }
 
 protected:

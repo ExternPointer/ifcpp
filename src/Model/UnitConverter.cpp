@@ -15,7 +15,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTH
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#define _USE_MATH_DEFINES
 #include <cmath>
 #include <cstring>
 #include <ifcpp/Ifc/IfcConversionBasedUnit.h>
@@ -102,7 +101,7 @@ void UnitConverter::setAngleUnit(AngularUnit unit)
 	}
 	else
 	{
-                SendMessage( "Could not set angular unit", StatusCallback::WARNING, __FUNC__ );
+                SendLogMessage( "Could not set angular unit", StatusCallback::Warning, __FUNC__ );
 	}
 }
 
@@ -112,7 +111,7 @@ void UnitConverter::setIfcProject( shared_ptr<IfcProject> project )
 
 	if( !project->m_UnitsInContext )
 	{
-                SendMessage( "IfcProject.UnitsInContext not defined", StatusCallback::WARNING, "" );
+                SendLogMessage( "IfcProject.UnitsInContext not defined", StatusCallback::Warning, "" );
 		return;
 	}
 

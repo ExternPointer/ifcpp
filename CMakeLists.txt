@@ -7,6 +7,7 @@ add_definitions( -DIFCQUERY_STATIC_LIB )
 
 add_definitions( -D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS )
 add_definitions( -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS )
+add_definitions( -D_USE_MATH_DEFINES )
 
 file( GLOB_RECURSE IFC_HEADERS include/ifcpp/Ifc *.h )
 
@@ -64,6 +65,7 @@ endif()
 
 add_library( ${PROJECT_NAME} INTERFACE )
 target_link_libraries( ${PROJECT_NAME} INTERFACE ifcpp_lib )
+target_compile_definitions( ${PROJECT_NAME} INTERFACE -D_USE_MATH_DEFINES )
 
 find_package( OpenMP )
 if( OpenMP_CXX_FOUND )

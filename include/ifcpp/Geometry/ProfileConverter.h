@@ -2,6 +2,7 @@
 
 #include <map>
 #include <vector>
+#include <cmath>
 
 #include "ifcpp/Model/OpenMPIncludes.h"
 

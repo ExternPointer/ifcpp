@@ -322,7 +322,7 @@ void BuildingModel::insertEntity( shared_ptr<BuildingEntity> e, bool overwrite_e
         {
             if( warn_on_existing_entities )
             {
-                this->SendMessage( "Entity already in model", StatusCallback::WARNING, __FUNC__, e );
+                this->SendLogMessage( "Entity already in model", StatusCallback::Warning, __FUNC__, e );
             }
         }
     }
@@ -331,21 +331,6 @@ void BuildingModel::insertEntity( shared_ptr<BuildingEntity> e, bool overwrite_e
         // the key does not exist in the map
         m_map_entities.insert( it_find, std::map<int, shared_ptr<BuildingEntity> >::value_type( tag, e ) );
     }
-#ifdef _DEBUG
-    shared_ptr<IfcProduct> product = dynamic_pointer_cast<IfcProduct>( e );
-    if( product )
-    {
-        if( !product->m_GlobalId )
-        {
-            this->SendMessage( "IfcProduct->m_GlobalId not set", StatusCallback::MESSAGE_TYPE_WARNING, __FUNC__, product.get() );
-            return;
-        }
-        if( product->m_GlobalId->m_value.length() < 22 )
-        {
-            this->SendMessage( "IfcProduct->m_GlobalId.length() < 22", StatusCallback::MESSAGE_TYPE_WARNING, __FUNC__, product.get() );
-        }
-    }
-#endif
 
     // TODO: if type is IfcRoot (or subtype), and GlobalID not set, create one
 }
@@ -354,14 +339,14 @@ void BuildingModel::removeEntity( shared_ptr<BuildingEntity> e )
 {
     if( !e )
     {
-        this->SendMessage( "Entity not valid", StatusCallback::WARNING, __FUNC__, e );
+        this->SendLogMessage( "Entity not valid", StatusCallback::Warning, __FUNC__, e );
         return;
     }
     int remove_id = e->m_tag;
     auto it_find = m_map_entities.find(remove_id);
     if( it_find == m_map_entities.end() )
     {
-        this->SendMessage( "Entity not found in model", StatusCallback::WARNING, __FUNC__, e );
+        this->SendLogMessage( "Entity not found in model", StatusCallback::Warning, __FUNC__, e );
         return;
     }
     shared_ptr<BuildingEntity> entity_found = it_find->second;
@@ -585,7 +570,7 @@ void BuildingModel::updateCache()
         {
             if( m_ifc_project )
             {
-                this->SendMessage("More than one IfcProject in model", StatusCallback::ERROR, __FUNC__, m_ifc_project);
+                this->SendLogMessage("More than one IfcProject in model", StatusCallback::Error, __FUNC__, m_ifc_project);
             }
             m_ifc_project = dynamic_pointer_cast<IfcProject>(obj);
 

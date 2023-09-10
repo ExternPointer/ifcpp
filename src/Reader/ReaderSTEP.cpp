@@ -127,7 +127,7 @@ void ReaderSTEP::loadModelFromFile( const std::string& filePath, shared_ptr<Buil
     else if( std_iequal( ext, ".ifcXML" ) )
     {
         // TODO: implement xml reader
-        this->SendMessage( "ifcXML not yet implemented", StatusCallback::ERROR, __FUNC__ );
+        this->SendLogMessage( "ifcXML not yet implemented", StatusCallback::Error, __FUNC__ );
         return;
     }
     else if( std_iequal( ext, ".ifcZIP" ) || std_iequal(ext, ".zip") )
@@ -148,7 +148,7 @@ void ReaderSTEP::loadModelFromFile( const std::string& filePath, shared_ptr<Buil
     {
         std::stringstream strs;
         strs << "Unsupported file type: " << ext;
-        this->SendMessage( strs.str(), StatusCallback::ERROR, __FUNC__ );
+        this->SendLogMessage( strs.str(), StatusCallback::Error, __FUNC__ );
         return;
     }
 
@@ -161,7 +161,7 @@ void ReaderSTEP::loadModelFromFile( const std::string& filePath, shared_ptr<Buil
     {
         std::stringstream strs;
         strs << "Could not open file: " << filePath.c_str();
-        this->SendMessage( strs.str().c_str(), StatusCallback::ERROR, __FUNC__ );
+        this->SendLogMessage( strs.str().c_str(), StatusCallback::Error, __FUNC__ );
         return;
     }
 
@@ -487,7 +487,7 @@ void ReaderSTEP::readSingleStepLine( const std::string& line, std::pair<std::str
     {
         std::stringstream strs;
         strs << "Could not read STEP line: " << line.c_str();
-        this->SendMessage( strs.str(), StatusCallback::ERROR, __FUNC__ );
+        this->SendLogMessage( strs.str(), StatusCallback::Error, __FUNC__ );
         return;
     }
 
@@ -760,7 +760,7 @@ void ReaderSTEP::readEntityArguments( std::vector<std::pair<std::string, shared_
 
     if( err.tellp() > 0 )
     {
-        this->SendMessage( err.str(), StatusCallback::ERROR, __FUNC__ );
+        this->SendLogMessage( err.str(), StatusCallback::Error, __FUNC__ );
     }
 }
 
@@ -774,7 +774,7 @@ void ReaderSTEP::readData(	std::istream& read_in, std::streampos file_size, shar
         return;
     }
     std::string file_schema_version = model->getIfcSchemaVersionOfLoadedFile();
-    this->SendMessage( std::string( "Detected IFC version: ") + file_schema_version, StatusCallback::INFO, "" );
+    this->SendLogMessage( std::string( "Detected IFC version: ") + file_schema_version, StatusCallback::Info, "" );
 
     size_t read_size = model->getFileHeader().size();
     std::stringstream err;
@@ -924,6 +924,6 @@ void ReaderSTEP::readData(	std::istream& read_in, std::streampos file_size, shar
     setlocale(LC_NUMERIC,current_numeric_locale.c_str());
     if( err.tellp() > 0 )
     {
-        this->SendMessage( err.str(), StatusCallback::ERROR, __FUNC__ );
+        this->SendLogMessage( err.str(), StatusCallback::Error, __FUNC__ );
     }
 }

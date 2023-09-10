@@ -15,7 +15,7 @@ std::vector<typename TAdapter::TEntity> LoadModel( const std::string& filePath, 
                                                    const std::function<void( double )>& onProgressChanged, const std::atomic<bool>& isCancellationRequest = false ) {
 
     auto readerMessageCallback = [ onProgressChanged ]( const std::shared_ptr<StatusCallback::Message>& message ) {
-        if( message->m_type == StatusCallback::PROGRESS_CHANGED ) {
+        if( message->m_type == StatusCallback::ProgressChanged ) {
             onProgressChanged( message->m_progress * 0.5 );
         }
     };

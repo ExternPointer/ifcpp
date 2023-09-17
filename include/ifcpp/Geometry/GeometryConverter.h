@@ -4,6 +4,7 @@
 #include "ifcpp/Geometry/CurveConverter.h"
 #include "ifcpp/Geometry/Extruder.h"
 #include "ifcpp/Geometry/GeomUtils.h"
+#include "ifcpp/Geometry/Helpers.h"
 #include "ifcpp/Geometry/Matrix.h"
 #include "ifcpp/Geometry/Parameters.h"
 #include "ifcpp/Geometry/PrimitiveTypesConverter.h"
@@ -20,6 +21,7 @@
 #include "ifcpp/Ifc/IfcFace.h"
 #include "ifcpp/Ifc/IfcFaceBound.h"
 #include "ifcpp/Ifc/IfcFaceOuterBound.h"
+#include "ifcpp/Ifc/IfcFaceSurface.h"
 #include "ifcpp/Ifc/IfcLoop.h"
 #include "ifcpp/Ifc/IfcOrientedEdge.h"
 #include "ifcpp/Ifc/IfcPlane.h"
@@ -128,7 +130,11 @@ public:
         return {};
     }
 
-    TLoop ConvertFace( const std::shared_ptr<IfcFace>& face ) {
+    std::vector<TLoop> ConvertFace( const std::shared_ptr<IfcFace>& face ) {
+        if( auto faceSurface = std::dynamic_pointer_cast<IfcFaceSurface>( face ) ) {
+            return this->ConvertSurface( faceSurface->m_FaceSurface );
+        }
+
         TLoop outer;
         std::vector<TLoop> inners;
 
@@ -147,20 +153,20 @@ public:
 
         if( outer.empty() ) {
             if( inners.size() == 1 ) {
-                outer = inners[0];
+                outer = inners[ 0 ];
                 inners.clear();
             } else {
                 return {};
             }
         }
 
-        return this->m_geomUtils->IncorporateHoles( outer, loops );
+        return { this->m_geomUtils->IncorporateHoles( outer, loops ) };
     }
 
     std::vector<TLoop> ConvertFaces( const std::vector<std::shared_ptr<IfcFace>>& loops ) {
         std::vector<TLoop> result;
         for( const auto& face: loops ) {
-            result.push_back( this->ConvertFace( face ) );
+            Helpers::AppendTo( &result, this->ConvertFace( face ) );
         }
         return result;
     }
@@ -242,8 +248,8 @@ public:
 
             shared_ptr<IfcSurfaceOfLinearExtrusion> linear_extrusion = dynamic_pointer_cast<IfcSurfaceOfLinearExtrusion>( swept_surface );
             if( linear_extrusion ) {
-                const auto extrusion = this->m_primitivesConverter->ConvertPoint( linear_extrusion->m_ExtrudedDirection->m_DirectionRatios ) *
-                    linear_extrusion->m_Depth->m_value;
+                const auto extrusion =
+                    this->m_primitivesConverter->ConvertPoint( linear_extrusion->m_ExtrudedDirection->m_DirectionRatios ) * linear_extrusion->m_Depth->m_value;
                 auto result = this->m_extruder->Extrude( curve, extrusion, false );
                 m.TransformLoops( &result );
                 return result;

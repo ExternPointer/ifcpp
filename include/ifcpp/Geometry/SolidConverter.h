@@ -313,9 +313,38 @@ private:
         //		Outer	 :	IfcClosedShell;
         // END_ENTITY;
 
-        auto loops = this->m_geometryConverter->ConvertFaces( manifoldSolidBrep->m_Outer->m_CfsFaces );
+        std::vector<TMesh> faceSurfaceMeshes;
+        std::vector<std::shared_ptr<IfcFace>> faces;
+        std::vector<TMesh> resultMeshes;
 
-        std::vector<TMesh> resultMeshes = { Helpers::CreateMesh( this->m_adapter, loops ) };
+        for( const auto& face: manifoldSolidBrep->m_Outer->m_CfsFaces ) {
+            if( std::dynamic_pointer_cast<IfcFaceSurface>( face ) ) {
+                faceSurfaceMeshes.push_back( Helpers::CreateMesh( this->m_adapter, this->m_geometryConverter->ConvertFace( face ) ) );
+            } else {
+                faces.push_back( face );
+            }
+        }
+
+        // FIXME: Hack for models with faceSurface - just intersect surface spaces using CSG
+        if( !faceSurfaceMeshes.empty() ) {
+            TMesh faceSurfaceCombinedMesh = faceSurfaceMeshes[ 0 ];
+            bool isValidResult = true;
+            for( int i = 1; i < faceSurfaceMeshes.size(); i++ ) {
+                auto intersectionResult = this->m_adapter->ComputeIntersection( { faceSurfaceCombinedMesh }, { faceSurfaceMeshes[ i ] } );
+                if( intersectionResult.size() == 1 ) {
+                    faceSurfaceCombinedMesh = intersectionResult[ 0 ];
+                } else {
+                    // TODO: Log error
+                    isValidResult = false;
+                    break;
+                }
+            }
+            if( isValidResult ) {
+                resultMeshes.push_back( faceSurfaceCombinedMesh );
+            }
+        }
+
+        resultMeshes.push_back( Helpers::CreateMesh( this->m_adapter, this->m_geometryConverter->ConvertFaces( faces ) ) );
 
         const auto facetedBrep = dynamic_pointer_cast<IfcFacetedBrep>( manifoldSolidBrep );
         if( facetedBrep ) {

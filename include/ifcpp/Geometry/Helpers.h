@@ -10,16 +10,7 @@ namespace ifcpp {
 class Helpers {
 public:
     template<typename T>
-    static std::vector<T> GetConcatenated( const std::vector<T>& v1, const std::vector<T>& v2 ) {
-        std::vector<T> result = v1;
-        result.reserve( v1.size() + v2.size() );
-        std::copy( v2.begin(), v2.end(), std::back_inserter( result ) );
-        return result;
-    }
-
-    template<typename T>
     static void AppendTo( std::vector<T>* target, const std::vector<T>& toAppend ) {
-        target->reserve( target->size() + toAppend.size() );
         std::copy( toAppend.begin(), toAppend.end(), std::back_inserter( *target ) );
     }
 
